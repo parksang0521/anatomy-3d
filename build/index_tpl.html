@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>인체 해부학 3D 아틀라스</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070b16;--panel:rgba(14,20,36,.88);--line:rgba(148,163,184,.16);--text:#e6eaf2;--muted:#8d99ae;--acc:#22d3ee;--acc2:#fbbf24}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+#app{display:flex;height:100vh}
+#side{width:310px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:5}
+#side header{padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+#side h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
+#side h1 span{color:var(--acc)}
+#side .tag{font-size:11.5px;color:var(--muted);margin-top:4px}
+#search{margin-top:12px;width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);font:inherit;font-size:13.5px;outline:none}
+#search:focus{border-color:var(--acc)}
+.controls{padding:12px 18px;border-bottom:1px solid var(--line);display:grid;gap:10px;font-size:12.5px;color:var(--muted)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+input[type=range]{width:130px;accent-color:var(--acc)}
+.sw{position:relative;width:34px;height:19px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;border-radius:20px;background:#2a3348;transition:.2s}
+.sw span:before{content:"";position:absolute;width:15px;height:15px;left:2px;top:2px;border-radius:50%;background:#cbd5e1;transition:.2s}
+.sw input:checked+span{background:var(--acc)}
+.sw input:checked+span:before{transform:translateX(15px);background:#fff}
+#list{flex:1;overflow:auto;padding:6px 8px 20px}
+details.sys{border-radius:10px;margin:4px 0}
+details.sys>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500}
+details.sys>summary::-webkit-details-marker{display:none}
+details.sys>summary:hover{background:rgba(255,255,255,.04)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 10px currentColor}
+.cnt{color:var(--muted);font-size:11.5px;margin-left:auto;margin-right:4px}
+.chev{color:var(--muted);font-size:11px;transition:.2s}
+details[open]>summary .chev{transform:rotate(90deg)}
+details.sub{margin:2px 0 2px 14px}
+details.sub>summary{list-style:none;font-size:12.5px;color:var(--muted);padding:5px 10px;cursor:pointer}
+details.sub>summary::-webkit-details-marker{display:none}
+.item{display:block;width:100%;text-align:left;background:none;border:0;padding:5px 10px 5px 28px;border-radius:7px;font-size:13px;color:#cbd5e1}
+.opbtn{background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-size:10.5px;padding:1px 5px;margin-left:2px;min-width:38px}
+.opbtn:hover{color:#fff;border-color:var(--acc)}
+select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;font-size:12.5px}
+.item small{color:var(--muted);margin-left:6px;font-size:10.5px}
+.item:hover{background:rgba(34,211,238,.08);color:#fff}
+.item.on{background:rgba(34,211,238,.16);color:#fff}
+#side footer{padding:10px 18px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted);line-height:1.55}
+#side footer a{color:var(--muted)}
+#stage{flex:1;position:relative;background:radial-gradient(ellipse at 50% 35%,#16223d 0%,#0a1020 55%,#05080f 100%)}
+#c{width:100%;height:100%;display:block;touch-action:none}
+.bar{position:absolute;top:14px;display:flex;gap:6px;z-index:4}
+#modeBar{left:14px}#viewBar{right:14px}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px;backdrop-filter:blur(8px)}
+.seg button{background:none;border:0;padding:6px 12px;border-radius:7px;font-size:13px;color:var(--muted)}
+.seg button.on{background:rgba(34,211,238,.18);color:#fff}
+.seg button:hover{color:#fff}
+#menuBtn{display:none}
+#tip{position:absolute;pointer-events:none;background:rgba(5,8,15,.92);border:1px solid var(--line);padding:5px 9px;border-radius:7px;font-size:12.5px;white-space:nowrap;opacity:0;transition:opacity .12s;z-index:6}
+#tip small{color:var(--muted);margin-left:5px}
+#hint{position:absolute;left:14px;bottom:12px;font-size:11.5px;color:var(--muted);pointer-events:none}
+#isoChip{position:absolute;top:62px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--acc);border-radius:20px;padding:5px 6px 5px 14px;font-size:12.5px;display:none;align-items:center;gap:8px;z-index:4}
+#isoChip button{background:var(--acc);border:0;color:#04121a;border-radius:14px;padding:3px 10px;font-weight:700;font-size:12px}
+.panel{position:absolute;right:14px;top:62px;width:350px;max-height:calc(100% - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;backdrop-filter:blur(10px);z-index:4;transition:opacity .2s,transform .2s}
+.panel.hidden{opacity:0;transform:translateY(8px);pointer-events:none}
+.systag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+.panel h2{margin:10px 0 2px;font-size:22px;letter-spacing:-.02em}
+.panel .sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+.panel p{font-size:13.5px;line-height:1.7;margin:0 0 12px;color:#d6dbe6}
+.panel h4{margin:14px 0 6px;font-size:12px;color:var(--acc);letter-spacing:.04em}
+.panel ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7;color:#d6dbe6}
+.clin{background:rgba(251,191,36,.07);border-left:3px solid var(--acc2);padding:9px 11px;border-radius:0 8px 8px 0;font-size:13px!important}
+.muted{color:var(--muted)!important;font-size:12.5px!important}
+.actions{display:flex;gap:6px;margin-top:14px}
+.btn{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:12.5px}
+.btn:hover{border-color:var(--acc);color:#fff}
+.btn.pri{background:var(--acc);color:#04121a;border-color:var(--acc);font-weight:700}
+.close{position:absolute;right:12px;top:10px;background:none;border:0;color:var(--muted);font-size:18px}
+#quiz .score{float:right;margin-right:26px;font-size:13px;color:var(--muted)}
+#quiz .score b{color:var(--acc2);font-size:16px}
+#qprompt{font-size:15px;line-height:1.6;margin:14px 0}
+#qprompt b{color:var(--acc2);font-size:19px}
+#qopts{display:grid;gap:7px}
+.opt{text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px}
+.opt:hover:not(:disabled){border-color:var(--acc)}
+.opt.ok{border-color:#34d399;background:rgba(52,211,153,.14)}
+.opt.no{border-color:#f87171;background:rgba(248,113,113,.14)}
+#qfb{font-size:13.5px;line-height:1.6;margin-top:12px;min-height:20px}
+#qfb .good{color:#34d399;font-weight:700}#qfb .bad{color:#f87171;font-weight:700}
+#loading{position:absolute;inset:0;display:grid;place-items:center;z-index:7;background:rgba(5,8,15,.55);transition:opacity .4s}
+#loading .box{width:280px;text-align:center;font-size:13.5px;color:#cbd5e1}
+#loading .track{height:6px;border-radius:6px;background:#1e2a44;margin-top:12px;overflow:hidden}
+#loading .fill{height:100%;width:0;background:var(--acc);transition:width .2s}
+#loading small{display:block;margin-top:8px;color:var(--muted);font-size:11.5px}
+@media (max-width:820px){
+  #side{position:absolute;left:0;top:0;bottom:0;transform:translateX(-100%);transition:transform .25s;width:86vw;max-width:330px}
+  #side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.6)}
+  #menuBtn{display:block}
+  .panel{left:10px;right:10px;width:auto;top:auto;bottom:10px;max-height:48vh}
+  #viewBar{top:58px;right:10px}
+  #hint{display:none}
+  .seg button{padding:6px 9px}
+}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
+      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>신경·근육·혈관은 아래 목록에서 켜세요</div>
+      <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
+    </header>
+    <div class="controls">
+      <div class="row">피부 윤곽 <input id="skinOp" type="range" min="0" max="0.5" step="0.01" value="0.08"></div>
+      <div class="row">뼈 반투명 (X-ray) <label class="sw"><input id="xray" type="checkbox"><span></span></label></div>
+      <div class="row">자동 회전 <label class="sw"><input id="spin" type="checkbox"><span></span></label></div>
+      <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
+      <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
+    </div>
+    <div id="list"></div>
+    <footer>3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
+  </aside>
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 신경·근육·혈관은 켤 때 따로 불러와요</small></div></div>
+    <div class="bar" id="modeBar">
+      <div class="seg" id="menuBtn"><button id="menuToggle">☰ 목록</button></div>
+      <div class="seg"><button data-mode="explore" class="on">탐색</button><button data-mode="quiz">퀴즈</button></div>
+    </div>
+    <div class="bar" id="viewBar">
+      <div class="seg">
+        <button data-view="front">앞</button><button data-view="back">뒤</button><button data-view="right">오른쪽</button><button data-view="left">왼쪽</button><button data-view="reset" title="처음 시점">↺</button>
+      </div>
+    </div>
+    <div id="isoChip"><span id="isoName"></span><button id="isoOff">전체 보기</button></div>
+    <div id="tip"></div>
+    <div id="hint">드래그: 회전 · 휠/핀치: 확대 · 우클릭(두 손가락) 드래그: 이동 · Esc: 선택 해제</div>
+    <section id="info" class="panel hidden"></section>
+    <section id="quiz" class="panel hidden">
+      <button class="close" id="qclose">×</button>
+      <span class="systag">퀴즈</span><span class="score">점수 <b id="qscore">0</b> / <span id="qtotal">0</span></span>
+      <div class="seg" style="margin-top:12px;width:max-content"><button data-qt="name" class="on">이름 맞히기</button><button data-qt="locate">위치 찾기</button></div>
+      <div id="qprompt"></div>
+      <div id="qopts"></div>
+      <div id="qfb"></div>
+      <div class="actions"><button class="btn" id="qskip">건너뛰기</button><button class="btn pri" id="qnext">다음 문제</button></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:10px">문제는 현재 켜져 있는 계통에서만 나옵니다.</div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const SYSTEMS = {
+  skeletal:   {ko:'골격계', dot:'#e9dfc9'},
+  nervous:    {ko:'신경계 (뇌·눈)', dot:'#f2d16b'},
+  cardio:     {ko:'심장·림프기관', dot:'#e04848'},
+  respiratory:{ko:'호흡계', dot:'#f29bb0'},
+  digestive:  {ko:'소화계', dot:'#d08a55'},
+  urinary:    {ko:'비뇨계', dot:'#a777d6'},
+  endocrine:  {ko:'내분비계', dot:'#4fc3a1'},
+  nerves:     {ko:'척수·말초신경·뇌신경', dot:'#ffd84d', lazy:true},
+  muscular:   {ko:'근육계', dot:'#c0504d', lazy:true},
+  arterial:   {ko:'동맥', dot:'#ff4d4d', lazy:true},
+  venous:     {ko:'정맥', dot:'#4d7cff', lazy:true},
+};
+const GROUP_ORDER=['심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
+
+/*INFO*/
+
+/* 추가 설명 */
+Object.assign(INFO,{
+hyoid:{ko:'목뿔뼈',desc:'아래턱과 방패연골 사이에 떠 있는 U자 모양 뼈. 다른 뼈와 관절하지 않고 근육과 인대로만 매달려 있다.',points:['목뿔위근육·목뿔아래근육의 부착점','삼킬 때 후두와 함께 위로 움직임'],clinical:'목졸림 손상에서 목뿔뼈 골절이 관찰될 수 있다.'},
+tooth:{ko:'치아',desc:'성인 영구치는 위·아래 각 16개, 모두 32개(사랑니 포함). 이 모델에는 사랑니(셋째큰어금니)가 없다.',points:['앞니 → 송곳니 → 작은어금니 → 큰어금니 순서','치아식: 2-1-2-3 (한쪽 위 또는 아래)'],clinical:'위 어금니 뿌리는 위턱굴과 가까워, 치아 감염이 위턱굴염으로 번질 수 있다.'},
+disk:{ko:'척추사이원판',desc:'척추뼈 몸통 사이에 있는 섬유연골 원판. 바깥의 섬유테와 가운데의 속질핵으로 이루어져 충격을 흡수한다.',points:['C1–C2 사이와 엉치뼈·꼬리뼈에는 없음','나이가 들수록 속질핵의 수분이 줄어듦'],clinical:'속질핵이 섬유테 뒤가쪽으로 탈출하면 바로 아래 신경뿌리를 누른다(예: L4–L5 탈출 → L5 뿌리).'},
+larynx:{ko:'후두 연골',desc:'후두의 뼈대를 이루는 연골들. 방패연골·반지연골·후두덮개는 홑, 모뿔·잔뿔·쐐기연골은 쌍으로 있다.',points:['방패연골 위모서리 ≈ C4 높이, 반지연골 ≈ C6 높이','모뿔연골이 움직여 성대 긴장과 성문 개폐를 조절'],clinical:'응급 기도 확보 시 방패연골과 반지연골 사이의 반지방패막을 절개한다.'},
+cerebrum:INFO.cerebrum,
+corpuscallosum:{ko:'뇌들보',desc:'좌우 대뇌반구를 잇는 가장 큰 교련섬유 다발.',points:['부리·무릎·몸통·팽대로 구분'],clinical:'뇌들보 절단 후 좌우 반구 사이 정보 전달 장애(분리뇌 증상)가 나타날 수 있다.'},
+thalamus:{ko:'시상',desc:'사이뇌의 대부분을 차지하는 회색질 덩어리. 후각을 제외한 거의 모든 감각이 대뇌겉질로 가기 전에 거치는 중계소다.',points:['배쪽뒤가쪽핵(VPL): 몸 감각 / 배쪽뒤안쪽핵(VPM): 얼굴 감각','가쪽무릎체: 시각 / 안쪽무릎체: 청각'],clinical:'시상 경색 뒤 반대쪽 몸에 심한 통증이 생기는 시상통증증후군(Dejerine-Roussy)이 올 수 있다.'},
+hypothalamus:{ko:'시상하부',desc:'셋째뇌실 바닥과 옆벽을 이루는 작은 영역. 자율신경과 내분비계를 통합해 항상성을 유지한다.',points:['체온·식욕·갈증·수면-각성 조절','뇌하수체 호르몬 분비 조절'],clinical:'시상하부-뇌하수체 부위 종양은 요붕증, 시야 결손 등을 함께 일으킬 수 있다.'},
+limbic:{ko:'둘레계통',desc:'해마·편도체·띠이랑·뇌활·유두체 등으로 이루어져 기억과 감정에 관여하는 회로.',points:['해마: 새로운 서술기억 형성','편도체: 공포·감정 반응','Papez 회로: 해마 → 뇌활 → 유두체 → 시상앞핵 → 띠이랑'],clinical:'알츠하이머병은 초기에 해마를 침범한다. Wernicke-Korsakoff 증후군에서는 유두체 위축이 특징적이다.'},
+basal:{ko:'바닥핵',desc:'대뇌 깊은 곳의 회색질 핵들(꼬리핵·조가비핵·창백핵 등)로, 운동의 시작과 조절에 관여한다.',points:['선조체 = 꼬리핵 + 조가비핵','속섬유막이 꼬리핵·시상과 렌즈핵 사이를 지남'],clinical:'파킨슨병(흑색질 도파민 신경 소실), 헌팅턴병(꼬리핵 위축)이 대표 질환이다. 속섬유막의 작은 경색으로도 반대쪽 몸 전체가 마비될 수 있다.'},
+ventricles:{ko:'뇌실계통',desc:'뇌척수액이 만들어지고 흐르는 뇌 속 공간. 가쪽뇌실 → 뇌실사이구멍 → 셋째뇌실 → 중간뇌수도관 → 넷째뇌실 순서로 이어진다.',points:['맥락얼기에서 뇌척수액 생성(하루 약 500mL)','넷째뇌실의 구멍들(정중구멍, 가쪽구멍)을 통해 거미막밑공간으로 나감'],clinical:'중간뇌수도관 협착 등으로 흐름이 막히면 비교통성 수두증이 생긴다.'},
+visual:{ko:'시각경로',desc:'망막 → 시각신경 → 시각교차 → 시각로 → 가쪽무릎체 → 시각부챗살 → 뒤통수엽 일차시각겉질로 이어지는 경로.',points:['시각교차에서 코쪽 망막 섬유만 교차'],clinical:'뇌하수체 종양이 시각교차를 누르면 양관자쪽 반맹이 생긴다.'},
+eye:{ko:'눈',desc:'안구는 바깥층(공막·각막), 중간층(맥락막·섬모체·홍채), 안층(망막)의 세 층과 그 안의 수정체·유리체로 이루어진다.',points:['각막이 굴절력의 약 2/3를 담당','수정체는 섬모체근의 작용으로 두께가 바뀌며 초점 조절'],clinical:'앞방각이 좁아지면 방수 배출이 막혀 급성 폐쇄각녹내장이 생길 수 있다.'},
+pituitary:{ko:'뇌하수체',desc:'나비뼈 안장(터키안장) 안에 있는 작은 샘. 앞엽과 뒤엽이 발생 기원과 기능이 다르다.',points:['앞엽: GH·PRL·ACTH·TSH·FSH·LH','뒤엽: ADH·옥시토신 (시상하부에서 만들어져 내려옴)'],clinical:'프로락틴분비샘종이 가장 흔한 뇌하수체 종양. 커지면 위쪽 시각교차를 눌러 양관자쪽 반맹을 일으킨다.'},
+pineal:{ko:'솔방울샘',desc:'셋째뇌실 뒤쪽 지붕에 붙은 작은 샘으로 멜라토닌을 분비해 일주기 리듬에 관여한다.',points:['나이가 들면 석회화되어 X선에서 보이기도 함'],clinical:'솔방울샘 부위 종양은 중간뇌 등쪽을 눌러 위쪽 주시 마비(Parinaud 증후군)를 일으킨다.'},
+valves:{ko:'심장판막',desc:'방실판(삼첨판·승모판)과 반달판(대동맥판·폐동맥판)이 혈액이 거꾸로 흐르지 않게 막는다.',points:['방실판 첨판은 힘줄끈과 꼭지근에 붙음','제1심음: 방실판 닫힘 / 제2심음: 반달판 닫힘'],clinical:'승모판 협착은 류마티스열의 후유증으로 흔하며 왼심방 확장과 심방세동을 동반하기 쉽다.'},
+bronchi:{ko:'기관지',desc:'기관이 갈라진 주기관지는 엽기관지, 구역기관지로 계속 나뉘며 허파 안으로 들어간다. 구역기관지 하나가 허파구역 하나를 담당한다.',points:['오른쪽: 위엽 3 · 중간엽 2 · 아래엽 5 구역','왼쪽: 위엽(혀 포함) 4–5 · 아래엽 4–5 구역'],clinical:'허파구역은 기관지와 동맥이 독립적이라 구역 단위 절제가 가능하다.'},
+tongue:{ko:'혀',desc:'입안 바닥의 근육성 기관. 맛을 느끼고 씹기·삼키기·발음에 관여한다.',points:['운동: 혀밑신경(XII)','앞 2/3 일반감각: 혀신경(V3) / 맛: 고실끈(VII)','뒤 1/3 감각·맛: 혀인두신경(IX)'],clinical:'혀밑신경 손상 시 내밀면 혀가 손상된 쪽으로 치우친다.'},
+salivary:{ko:'침샘',desc:'귀밑샘·턱밑샘·혀밑샘의 큰침샘 세 쌍이 침을 분비한다.',points:['턱밑샘관(Wharton관)은 혀밑언덕으로 열림','턱밑샘·혀밑샘의 분비는 고실끈(VII) 부교감 섬유가 조절'],clinical:'침샘 결석은 턱밑샘에 가장 흔하다(관이 길고 위로 올라가며 침이 끈적함).'},
+biliary:{ko:'쓸개길',desc:'간에서 만들어진 담즙이 좌우 간관 → 온간관 → (쓸개관과 합류) → 온쓸개관을 거쳐 샘창자로 나간다.',points:['Calot 삼각: 쓸개관, 온간관, 간 아랫면'],clinical:'온쓸개관 결석은 폐쇄성 황달과 담관염(Charcot 3징: 발열·황달·오른위배 통증)을 일으킬 수 있다.'},
+urethra:{ko:'요도',desc:'방광의 소변을 몸 밖으로 내보내는 관. 남성 요도는 전립샘부·막부·해면체부로 나뉘며 약 20cm다.',points:['막부: 바깥요도조임근(수의근)'],clinical:'골반 골절 시 남성 요도 막부 손상이 생길 수 있어, 요도구 출혈이 있으면 도뇨관 삽입 전에 확인이 필요하다.'},
+thymus:{ko:'가슴샘',desc:'위세로칸 앞쪽에 있는 림프기관으로 T세포가 성숙하는 곳. 사춘기 이후 점차 지방으로 바뀐다.',points:['T세포의 양성·음성 선택이 일어남'],clinical:'가슴샘종은 중증근무력증과 동반되는 경우가 많다. DiGeorge 증후군에서는 가슴샘이 형성되지 않는다.'},
+});
+INFO.cerebrum = INFO.cerebrum;
+/*INFO_MV*/
+/*INFO_NV*/
+for(const [r,n] of [['C',7],['T',12],['L',5]]) for(let i=1;i<=n;i++){ const o=VOVR[r+i]||{}; INFO[r+i]={...VREG[r],...o}; }
+
+/* ---------------- 렌더러 ---------------- */
+const stage=document.getElementById('stage'), canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(32,1,0.01,30);
+const HOME={t:new THREE.Vector3(0,0.98,0),p:new THREE.Vector3(0.75,1.2,3.6)};
+camera.position.copy(HOME.p);
+const controls=new OrbitControls(camera,canvas);
+controls.target.copy(HOME.t); controls.enableDamping=true; controls.dampingFactor=.08;
+controls.minDistance=0.12; controls.maxDistance=7; controls.autoRotateSpeed=1.2; controls.zoomSpeed=1.2;
+scene.add(new THREE.HemisphereLight(0xeaf2ff,0x1a2233,1.0));
+const key=new THREE.DirectionalLight(0xffffff,1.8); key.position.set(1,3,2.5); scene.add(key);
+const fill=new THREE.DirectionalLight(0x9fc4ff,0.7); fill.position.set(-2,1,-1.5); scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffe2c4,0.6); rim.position.set(0,1,-3); scene.add(rim);
+const headLight=new THREE.DirectionalLight(0xffffff,0.35); camera.add(headLight); scene.add(camera);
+{ const ring=new THREE.Mesh(new THREE.RingGeometry(0.42,0.426,96),new THREE.MeshBasicMaterial({color:0x22d3ee,transparent:true,opacity:.25}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.002; scene.add(ring);
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; const g=cv.getContext('2d');
+  const gr=g.createRadialGradient(128,128,0,128,128,128); gr.addColorStop(0,'rgba(0,0,0,.5)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,256,256);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(1,.8),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}));
+  fl.rotation.x=-Math.PI/2; scene.add(fl); }
+
+/* ---------------- 색 ---------------- */
+function colorOf(p){
+  const k=p.key||'', en=p.en.toLowerCase();
+  if(p.sys==='skeletal'){
+    if(k==='tooth') return 0xf6f1e4;
+    if(k==='disk'||k==='costal'||k==='larynx'||en.includes('cartilage')) return 0xb9d0da;
+    return 0xe8dcc3;
+  }
+  if(p.sys==='nervous'){
+    if(k==='ventricles') return 0x5b9bd5;
+    if(k==='eye') return en.includes('iris')?0x6b4a2a:en.includes('lens')||en.includes('cornea')||en.includes('chamber')||en.includes('vitreous')?0xcfe6f2:0xf2ede6;
+    if(k==='visual') return 0xf2d16b;
+    if(en.includes('white matter')||k==='corpuscallosum'||en.includes('capsule')) return 0xf3e7da;
+    if(k==='basal'||k==='thalamus'||k==='hypothalamus') return 0xc98b86;
+    if(k==='limbic') return 0xd9a06a;
+    if(k==='brainstem') return 0xe2b3a6;
+    if(k==='cerebellum') return 0xd28d88;
+    return 0xe8b0aa;
+  }
+  if(p.sys==='cardio'){ if(k==='spleen') return 0x7a3355; if(k==='thymus') return 0xd9a3b0; if(k==='valves') return 0xf0d0a0; if(en.includes('cavity')) return 0x6e1a18; return 0xb3312c; }
+  if(p.sys==='respiratory'){ if(k==='lung_r'||k==='lung_l') return en.includes('middle')?0xf3b6c2:en.includes('upper')?0xeea0b0:0xe592a4; return 0xe7cbc4; }
+  if(p.sys==='digestive'){
+    const m={stomach:0xd98877,esophagus:0xd9928a,smallint:0xe9a58c,largeint:0xc78a62,appendix:0xb97a55,liver:0x8e3b2f,gallbladder:0x5a8f3c,biliary:0x7fb069,pancreas:0xe8c27a,tongue:0xc96a6a,salivary:0xe0b48a};
+    if(en.startsWith('taenia')) return 0xa86d48; return m[k]??0xd09070; }
+  if(p.sys==='urinary') return {kidney:0xa3473a,ureter:0xd8b26a,bladder:0xd9b46e,urethra:0xd8b26a}[k]??0xc09050;
+  if(p.sys==='endocrine') return 0xe3a33f;
+  if(p.sys==='nerves') return k==='spinalcord'||k==='cauda'?0xf6e7b0:k==='sympathetic'?0xd9b85a:k==='vagus'||k==='rln'?0xf0c040:0xf5d34f;
+  if(p.sys==='muscular') return /tendon|ligament|membrane|tract|linea/i.test(p.en)?0xe6dfcc:0xb5473f;
+  if(p.sys==='arterial') return 0xd8343a;
+  if(p.sys==='venous') return 0x3d66c8;
+  return 0xcccccc;
+}
+
+/* ---------------- 로딩 ---------------- */
+const parts={}, pickables=[], groups={}, skinG=new THREE.Group(); scene.add(skinG);
+for(const s in SYSTEMS){ groups[s]=new THREE.Group(); scene.add(groups[s]); }
+const skinMat=new THREE.MeshStandardMaterial({color:0xf1c6a8,roughness:.8,transparent:true,opacity:.08,depthWrite:false,side:THREE.DoubleSide});
+const ldFill=document.getElementById('ldFill'), ldText=document.getElementById('ldText');
+async function fetchGz(url,onBytes){
+  const res=await fetch(url); if(!res.ok) throw new Error(url+' '+res.status);
+  const reader=res.body.getReader(); const bufs=[]; let n=0;
+  for(;;){ const {done,value}=await reader.read(); if(done) break; bufs.push(value); n+=value.length; onBytes(value.length); }
+  const blob=new Blob(bufs);
+  const ds=blob.stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(ds).arrayBuffer();
+}
+let MAN=null; const loaded={}, loading={};
+function buildMeshes(p,b){
+  const [lx,ly,lz]=MAN.lo, [sx,sy,sz]=MAN.sc;
+  const q=new Uint16Array(b,p.po,p.vc*3); const pos=new Float32Array(p.vc*3);
+  for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*3]*sx; pos[i*3+1]=ly+q[i*3+1]*sy; pos[i*3+2]=lz+q[i*3+2]*sz; }
+  const idx=p.i32?new Uint32Array(b,p.io,p.ic):new Uint16Array(b,p.io,p.ic);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx.slice(),1));
+  g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
+  if(p.sys==='skin'){ const m=new THREE.Mesh(g,skinMat); m.renderOrder=10; skinG.add(m); return; }
+  const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
+  if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
+  const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
+  m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId); if(typeof clipOn!=='undefined'&&clipOn) mat.side=THREE.DoubleSide;
+  groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m);
+}
+async function loadFiles(files,onBytes){
+  const bufs={}; await Promise.all(files.map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); })); return bufs;
+}
+async function load(){
+  MAN=await (await fetch('models/manifest.json')).json();
+  for(const p of MAN.parts){ if(p.sys==='skin') continue; parts[p.id]={...p,info:INFO[p.key]||null,meshes:[],grp:p.grp||'기타'}; }
+  const first=Object.keys(MAN.files).filter(f=>!SYSTEMS[f]?.lazy);
+  const total=first.reduce((a,f)=>a+MAN.files[f],0); let got=0;
+  const bufs=await loadFiles(first,n=>{ got+=n; ldFill.style.width=(got/total*100).toFixed(1)+'%'; ldText.textContent=`3D 모델 불러오는 중… ${(got/1e6).toFixed(1)} / ${(total/1e6).toFixed(1)} MB`; });
+  ldText.textContent='모델 조립 중…';
+  for(const p of MAN.parts) if(bufs[p.f]) buildMeshes(p,bufs[p.f]);
+  first.forEach(f=>loaded[f]=true);
+  const L=document.getElementById('loading'); L.style.opacity=0; setTimeout(()=>L.remove(),400);
+}
+const chipL=document.createElement('div'); chipL.style.cssText='position:absolute;left:50%;bottom:44px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:12.5px;z-index:6;display:none';
+document.getElementById('stage').appendChild(chipL);
+async function ensureSys(s){
+  if(loaded[s]) return; if(loading[s]) return loading[s];
+  loading[s]=(async()=>{
+    const total=MAN.files[s]; let got=0; chipL.style.display='block';
+    const bufs=await loadFiles([s],n=>{ got+=n; chipL.textContent=`${SYSTEMS[s].ko} 불러오는 중… ${Math.round(got/total*100)}%`; });
+    chipL.textContent=`${SYSTEMS[s].ko} 조립 중…`; await new Promise(r=>setTimeout(r,30));
+    for(const p of MAN.parts) if(p.f===s) buildMeshes(p,bufs[s]);
+    loaded[s]=true; chipL.style.display='none'; applyOpacity(); const c=document.querySelector(`details[data-sys=${s}] .cnt`); if(c) c.textContent=c.textContent.replace('⤓ ','');
+  })();
+  return loading[s];
+}
+
+/* ---------------- 상태 ---------------- */
+const sysOn={}; for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
+let selId=null, hoverId=null, isoId=null, xray=false; const sysOp={};
+const quiz={on:false,type:'name',target:null,answered:false,score:0,total:0};
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+function updateVisibility(){
+  for(const p of Object.values(parts)){ const v=sysOn[p.sys]&&(!isoId||p.id===isoId); p.meshes.forEach(m=>m.visible=v); }
+  const chip=document.getElementById('isoChip'); chip.style.display=isoId?'flex':'none';
+  if(isoId) document.getElementById('isoName').textContent=`'${parts[isoId].ko}'만 보는 중`;
+}
+function setOp(m,o){ const t=o<1; if(m.material.transparent!==t) m.material.needsUpdate=true; m.material.transparent=t; m.material.opacity=o; m.material.depthWrite=!t; }
+function applyOpacity(ghostId=null){
+  for(const p of Object.values(parts)) p.meshes.forEach(m=>{
+    let o=m.userData.baseOpacity; if(xray&&m.userData.bone) o=Math.min(o,0.18); o=Math.min(o,sysOp[p.sys]??1);
+    if(ghostId&&p.id!==ghostId) o=Math.min(o,0.08);
+    setOp(m,o); });
+}
+function paint(){
+  for(const p of Object.values(parts)){
+    let c=0x000000,i=0;
+    if(p.id===hoverId){c=0x3b82f6;i=0.4;}
+    if(p.id===selId){c=0x22d3ee;i=0.6;}
+    p.meshes.forEach(m=>{ m.material.emissive.setHex(c); m.material.emissiveIntensity=i; });
+  }
+  document.querySelectorAll('.item').forEach(b=>b.classList.toggle('on',b.dataset.id===selId));
+}
+
+/* ---------------- 카메라 ---------------- */
+let tween=null;
+function flyTo(t,p,dur=750){ tween={t0:performance.now(),dur,fT:controls.target.clone(),tT:t.clone(),fP:camera.position.clone(),tP:p.clone()}; }
+function focusPart(p){
+  if(!p.meshes.length) return; const box=new THREE.Box3(); p.meshes.forEach(m=>box.expandByObject(m));
+  const c=box.getCenter(V()), sz=box.getSize(V()).length();
+  const dir=camera.position.clone().sub(controls.target).normalize();
+  flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(0.28,sz*2.2))));
+}
+const VIEWS={front:[0,1.05,3.6],back:[0,1.05,-3.6],right:[-3.6,1.05,0],left:[3.6,1.05,0]};
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.dataset.view; flyTo(HOME.t, v==='reset'?HOME.p:V(...VIEWS[v])); });
+
+/* ---------------- 정보 패널 ---------------- */
+const info=document.getElementById('info');
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function select(id,{focus=false}={}){
+  selId=id; paint();
+  try{ history.replaceState(null,'',id?'#'+slugOf(parts[id]):location.pathname+location.search); }catch(e){}
+  if(!id){ info.classList.add('hidden'); return; }
+  const p=parts[id], S=SYSTEMS[p.sys], I=p.info;
+  const general = I && I.ko && I.ko!==p.ko.replace(/^(왼쪽|오른쪽) /,'') ? `<div class="muted" style="margin:-4px 0 8px">아래 설명은 <b>${esc(I.ko)}</b> 전체에 대한 내용이에요.</div>`:'';
+  info.innerHTML=`<button class="close" id="infoClose">×</button>
+    <span class="systag"><span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}${p.grp&&p.grp!=='기타'?' · '+esc(p.grp):''}</span>
+    <h2>${esc(p.ko)}</h2>
+    <div class="sub">${p.old&&p.old!==p.ko?esc(p.old)+' · ':''}${esc(p.en)}</div>
+    ${I?`${general}<p>${esc(I.desc)}</p>
+      ${I.points?.length?`<h4>핵심 포인트</h4><ul>${I.points.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+      ${I.clinical?`<h4>임상 연관</h4><p class="clin">${esc(I.clinical)}</p>`:''}`
+     :`<p class="muted">이 구조물의 상세 설명은 아직 준비 중이에요.</p>`}
+    ${p.sys==='nerves'&&!/branch|ciliary|ethmoidal|frontal|lacrimal|nasociliary|supra|infratrochlear|ophthalmic|^(left|right) trochlear/i.test(p.en)?'<p class="muted" style="margin-top:10px">ⓘ 원본 데이터에 없는 신경이라, 주변 뼈·혈관·근육 위치를 기준으로 경로를 만든 근사 모델이에요.</p>':''}
+    <div class="actions"><button class="btn" id="bLink">링크 복사</button><button class="btn" id="bFocus">확대해서 보기</button><button class="btn pri" id="bIso">${isoId===id?'전체 보기':'이것만 보기'}</button></div>`;
+  info.classList.remove('hidden');
+  document.getElementById('infoClose').onclick=()=>select(null);
+  document.getElementById('bFocus').onclick=()=>focusPart(p);
+  document.getElementById('bLink').onclick=async e=>{ try{ await navigator.clipboard.writeText(location.href); e.target.textContent='복사됨 ✓'; }catch(err){ e.target.textContent='주소창 링크를 복사하세요'; } setTimeout(()=>{ e.target.textContent='링크 복사'; },1800); };
+  document.getElementById('bIso').onclick=()=>{ isoId=isoId===id?null:id; updateVisibility(); select(id); if(isoId) focusPart(p); };
+  if(focus) focusPart(p);
+}
+document.getElementById('isoOff').onclick=()=>{ isoId=null; updateVisibility(); if(selId) select(selId); };
+
+/* ---------------- 목록 ---------------- */
+const list=document.getElementById('list');
+function buildList(){
+  list.innerHTML='';
+  for(const s in SYSTEMS){
+    const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>a.ko.localeCompare(b.ko,'ko'));
+    const d=document.createElement('details'); d.className='sys'; d.dataset.sys=s;
+    d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[s]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
+      <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${S.lazy&&!loaded[s]?'⤓ ':''}${ps.length}</span><button class="opbtn" data-op="${s}" title="이 계통 투명도">100%</button><span class="chev">▶</span></summary>`;
+    d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; if(sysOn[s]) ensureSys(s); updateVisibility(); };
+    d.querySelector('.opbtn').onclick=e=>{ e.preventDefault(); e.stopPropagation(); const seq=[1,0.45,0.15]; sysOp[s]=seq[(seq.indexOf(sysOp[s]??1)+1)%3]; e.target.textContent=Math.round(sysOp[s]*100)+'%'; applyOpacity(); };
+    const mk=p=>{ const b=document.createElement('button'); b.className='item'; b.dataset.id=p.id; b.dataset.q=(p.ko+' '+(p.old||'')+' '+p.en).toLowerCase();
+      b.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`;
+      b.onclick=async()=>{ if(!sysOn[p.sys]){ sysOn[p.sys]=true; d.querySelector('input').checked=true; updateVisibility(); } await ensureSys(p.sys); select(p.id,{focus:true}); side.classList.remove('open'); }; return b; };
+    const gm={}; ps.forEach(p=>(gm[p.grp]||=[]).push(p));
+    const keys=Object.keys(gm).sort((a,b)=>(GROUP_ORDER.indexOf(a)+1||99)-(GROUP_ORDER.indexOf(b)+1||99));
+    if(keys.length===1) gm[keys[0]].forEach(p=>d.appendChild(mk(p)));
+    else for(const g of keys){ const sd=document.createElement('details'); sd.className='sub'; sd.innerHTML=`<summary>▸ ${esc(g)} (${gm[g].length})</summary>`; gm[g].forEach(p=>sd.appendChild(mk(p))); d.appendChild(sd); }
+    list.appendChild(d);
+  }
+}
+document.getElementById('search').oninput=e=>{
+  const q=e.target.value.trim().toLowerCase();
+  list.querySelectorAll('.item').forEach(b=>b.style.display=!q||b.dataset.q.includes(q)?'':'none');
+  list.querySelectorAll('details').forEach(d=>{ const any=[...d.querySelectorAll('.item')].some(b=>b.style.display!=='none'); if(q){ d.open=any; d.style.display=any?'':'none'; } else { d.style.display=''; d.open=false; } });
+};
+document.getElementById('skinOp').oninput=e=>{ const v=+e.target.value; skinMat.opacity=v; skinG.visible=v>0.001; };
+document.getElementById('xray').onchange=e=>{ xray=e.target.checked; applyOpacity(); };
+document.getElementById('spin').onchange=e=>{ controls.autoRotate=e.target.checked; };
+const side=document.getElementById('side');
+document.getElementById('menuToggle').onclick=()=>side.classList.toggle('open');
+
+/* ---------------- 공유 링크 ---------------- */
+const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+async function openHash(){
+  const h=decodeURIComponent(location.hash.slice(1)); if(!h) return;
+  const p=Object.values(parts).find(q=>slugOf(q)===h); if(!p) return;
+  if(!sysOn[p.sys]){ sysOn[p.sys]=true; const i=document.querySelector(`details[data-sys=${p.sys}] input`); if(i) i.checked=true; updateVisibility(); }
+  await ensureSys(p.sys); if(selId!==p.id) select(p.id,{focus:true});
+}
+addEventListener('hashchange',openHash);
+
+/* ---------------- 단면 보기 ---------------- */
+const clipPlane=new THREE.Plane(new THREE.Vector3(0,-1,0),1); let clipOn=false, clipFlipped=false;
+const clipMode=document.getElementById('clipMode'), clipPos=document.getElementById('clipPos');
+function updateClip(){
+  const mode=clipMode.value; clipOn=mode!=='off'; document.getElementById('clipRow').style.display=clipOn?'flex':'none';
+  renderer.clippingPlanes=clipOn?[clipPlane]:[];
+  for(const m of pickables){ const want=clipOn?THREE.DoubleSide:THREE.FrontSide; if(m.material.side!==want){ m.material.side=want; m.material.needsUpdate=true; } }
+  if(!clipOn) return;
+  const ax={axial:1,sagittal:0,coronal:2}[mode], lo=MAN.lo[ax], hi=lo+MAN.sc[ax]*65535;
+  const c=lo+(+clipPos.value)*(hi-lo), n=new THREE.Vector3(); n.setComponent(ax,clipFlipped?1:-1);
+  clipPlane.normal.copy(n); clipPlane.constant=clipFlipped?-c:c;
+}
+clipMode.onchange=()=>{ const d={axial:0.62,sagittal:0.5,coronal:0.5}[clipMode.value]; if(d!=null) clipPos.value=d; updateClip();
+  if(clipMode.value==='sagittal') flyTo(HOME.t,V(...VIEWS.right));
+  else if(clipMode.value==='axial'){ const y=clipPlane.constant; flyTo(V(0,y-0.05,0),V(0.25,y+1.2,1.3)); }
+  else if(clipMode.value!=='off') flyTo(HOME.t,HOME.p); };
+clipPos.oninput=updateClip;
+document.getElementById('clipFlip').onclick=()=>{ clipFlipped=!clipFlipped; updateClip(); };
+
+/* ---------------- 선택 ---------------- */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), tip=document.getElementById('tip');
+function pick(ev){
+  const r=canvas.getBoundingClientRect(); ndc.set(((ev.clientX-r.left)/r.width)*2-1, -((ev.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const vis=pickables.filter(m=>m.visible && m.material.opacity>0.1);
+  const pref = xray ? vis.filter(m=>!m.userData.bone) : vis;
+  const cf=hs=>clipOn?hs.filter(x=>clipPlane.distanceToPoint(x.point)>=0):hs;
+  let h=cf(ray.intersectObjects(pref,false)); if(!h.length && xray) h=cf(ray.intersectObjects(vis,false));
+  return h[0]?.object.userData.id||null;
+}
+let down=null, moveRaf=0, lastEv=null;
+canvas.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY}; controls.autoRotate=false; document.getElementById('spin').checked=false; });
+canvas.addEventListener('pointerup',e=>{
+  if(!down) return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y); down=null; if(moved>5) return;
+  const id=pick(e);
+  if(quiz.on&&quiz.type==='locate'){ if(id) answerLocate(id); return; }
+  if(quiz.on) return; select(id);
+});
+canvas.addEventListener('pointermove',e=>{ lastEv=e; if(moveRaf) return; moveRaf=requestAnimationFrame(()=>{ moveRaf=0;
+  if(down||e.pointerType==='touch'){ tip.style.opacity=0; return; }
+  const id=pick(lastEv);
+  if(id!==hoverId){ hoverId=id; paint(); }
+  if(id&&!quiz.on){ const p=parts[id]; tip.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`; tip.style.opacity=1;
+    const r=stage.getBoundingClientRect(); tip.style.left=(lastEv.clientX-r.left+14)+'px'; tip.style.top=(lastEv.clientY-r.top+12)+'px'; }
+  else tip.style.opacity=0;
+  canvas.style.cursor=id?'pointer':'grab'; }); });
+canvas.addEventListener('pointerleave',()=>{ tip.style.opacity=0; if(hoverId){hoverId=null;paint();} });
+addEventListener('keydown',e=>{ if(e.key==='Escape') select(null); });
+
+/* ---------------- 퀴즈 ---------------- */
+const qEl=document.getElementById('quiz'), qprompt=document.getElementById('qprompt'), qopts=document.getElementById('qopts'), qfb=document.getElementById('qfb');
+const pool=()=>Object.values(parts).filter(p=>p.info&&p.meshes.length&&sysOn[p.sys]&&p.r>0.012&&!['tooth','disk','costal'].includes(p.key));
+const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+function setMode(m){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  quiz.on=m==='quiz';
+  if(quiz.on){ select(null); isoId=null; updateVisibility(); qEl.classList.remove('hidden'); nextQ(); }
+  else { qEl.classList.add('hidden'); quiz.target=null; paint(); applyOpacity(); }
+}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.getElementById('qclose').onclick=()=>setMode('explore');
+document.querySelectorAll('[data-qt]').forEach(b=>b.onclick=()=>{ quiz.type=b.dataset.qt; document.querySelectorAll('[data-qt]').forEach(x=>x.classList.toggle('on',x===b)); nextQ(); });
+document.getElementById('qnext').onclick=()=>nextQ();
+document.getElementById('qskip').onclick=()=>{ if(!quiz.answered&&quiz.target){ quiz.total++; updScore(); } nextQ(); };
+function updScore(){ document.getElementById('qscore').textContent=quiz.score; document.getElementById('qtotal').textContent=quiz.total; }
+function nextQ(){
+  const P=pool(); qfb.innerHTML=''; quiz.answered=false;
+  if(P.length<4){ qprompt.innerHTML='켜진 계통이 너무 적어요. 왼쪽 목록에서 계통을 더 켜주세요.'; qopts.innerHTML=''; return; }
+  let t; do{ t=P[Math.floor(Math.random()*P.length)]; }while(quiz.target&&t.id===quiz.target.id);
+  quiz.target=t; selId=null; paint(); applyOpacity(quiz.type==='name'?t.id:null);
+  if(quiz.type==='name'){
+    qprompt.innerHTML='<b>깜빡이는</b> 구조물의 이름은?';
+    const used=new Set([t.ko]); const cands=[...shuffle(P.filter(p=>p.grp===t.grp)),...shuffle(P.filter(p=>p.sys===t.sys)),...shuffle(P)];
+    const opts=[t]; for(const c of cands){ if(opts.length>=4) break; if(!used.has(c.ko)){ used.add(c.ko); opts.push(c); } }
+    qopts.innerHTML=''; shuffle(opts).forEach(o=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=o.ko; b.dataset.id=o.id; b.onclick=()=>answerName(o,b); qopts.appendChild(b); });
+    focusPart(t);
+  } else {
+    qprompt.innerHTML=`3D 모델에서 <b>${esc(t.ko)}</b>${t.old?` <span style="color:var(--muted)">(${esc(t.old)})</span>`:''}을(를) 클릭하세요.`;
+    qopts.innerHTML=''; flyTo(HOME.t,HOME.p);
+  }
+}
+function reveal(ok,extra=''){
+  quiz.answered=true; quiz.total++; if(ok) quiz.score++; updScore();
+  const t=quiz.target; selId=t.id; paint(); applyOpacity();
+  qfb.innerHTML=`${ok?'<span class="good">정답!</span>':'<span class="bad">오답</span>'} ${extra}<br><b>${esc(t.ko)}</b> · ${esc(t.en)}<br><span style="color:var(--muted)">${esc(t.info?.desc||'')}</span>`;
+}
+function answerName(o,b){ if(quiz.answered) return; const ok=o.id===quiz.target.id;
+  [...qopts.children].forEach(x=>{ x.disabled=true; if(x.dataset.id===quiz.target.id) x.classList.add('ok'); }); if(!ok) b.classList.add('no'); reveal(ok); }
+function answerLocate(id){ if(quiz.answered) return; const ok=id===quiz.target.id; reveal(ok, ok?'':`클릭한 곳은 '${esc(parts[id].ko)}'예요.`); focusPart(quiz.target); }
+
+/* ---------------- 루프 ---------------- */
+function resize(){ const r=stage.getBoundingClientRect(); renderer.setSize(r.width,r.height,false); camera.aspect=r.width/Math.max(1,r.height); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage); resize();
+const clock=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  if(tween){ let k=Math.min(1,(performance.now()-tween.t0)/tween.dur); k=1-Math.pow(1-k,3);
+    controls.target.lerpVectors(tween.fT,tween.tT,k); camera.position.lerpVectors(tween.fP,tween.tP,k); if(k>=1) tween=null; }
+  if(quiz.on&&quiz.type==='name'&&quiz.target&&!quiz.answered){
+    const i=0.55+0.3*Math.sin(clock.getElapsedTime()*5);
+    quiz.target.meshes.forEach(m=>{ m.material.emissive.setHex(0xfbbf24); m.material.emissiveIntensity=i; });
+  }
+  controls.update(); renderer.render(scene,camera);
+}
+loop();
+load().then(()=>{ buildList(); updateVisibility(); paint(); openHash(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
+</script>
+</body>
+</html>

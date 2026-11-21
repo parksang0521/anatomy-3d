@@ -40,6 +40,9 @@ details.sub{margin:2px 0 2px 14px}
 details.sub>summary{list-style:none;font-size:12.5px;color:var(--muted);padding:5px 10px;cursor:pointer}
 details.sub>summary::-webkit-details-marker{display:none}
 .item{display:block;width:100%;text-align:left;background:none;border:0;padding:5px 10px 5px 28px;border-radius:7px;font-size:13px;color:#cbd5e1}
+.opbtn{background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-size:10.5px;padding:1px 5px;margin-left:2px;min-width:38px}
+.opbtn:hover{color:#fff;border-color:var(--acc)}
+select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;font-size:12.5px}
 .item small{color:var(--muted);margin-left:6px;font-size:10.5px}
 .item:hover{background:rgba(34,211,238,.08);color:#fff}
 .item.on{background:rgba(34,211,238,.16);color:#fff}
@@ -107,20 +110,22 @@ details.sub>summary::-webkit-details-marker{display:none}
   <aside id="side">
     <header>
       <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
-      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>근육·동맥·정맥은 아래 목록에서 켜세요</div>
+      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>신경·근육·혈관은 아래 목록에서 켜세요</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
     </header>
     <div class="controls">
       <div class="row">피부 윤곽 <input id="skinOp" type="range" min="0" max="0.5" step="0.01" value="0.08"></div>
       <div class="row">뼈 반투명 (X-ray) <label class="sw"><input id="xray" type="checkbox"><span></span></label></div>
       <div class="row">자동 회전 <label class="sw"><input id="spin" type="checkbox"><span></span></label></div>
+      <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
+      <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
     <div id="list"></div>
     <footer>3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
   </aside>
   <main id="stage">
     <canvas id="c"></canvas>
-    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 근육·혈관은 켤 때 따로 불러와요</small></div></div>
+    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 신경·근육·혈관은 켤 때 따로 불러와요</small></div></div>
     <div class="bar" id="modeBar">
       <div class="seg" id="menuBtn"><button id="menuToggle">☰ 목록</button></div>
       <div class="seg"><button data-mode="explore" class="on">탐색</button><button data-mode="quiz">퀴즈</button></div>
@@ -159,6 +164,7 @@ const SYSTEMS = {
   digestive:  {ko:'소화계', dot:'#d08a55'},
   urinary:    {ko:'비뇨계', dot:'#a777d6'},
   endocrine:  {ko:'내분비계', dot:'#4fc3a1'},
+  nerves:     {ko:'척수·말초신경·뇌신경', dot:'#ffd84d', lazy:true},
   muscular:   {ko:'근육계', dot:'#c0504d', lazy:true},
   arterial:   {ko:'동맥', dot:'#ff4d4d', lazy:true},
   venous:     {ko:'정맥', dot:'#4d7cff', lazy:true},
@@ -487,6 +493,43 @@ armveins:{ko:'팔의 얕은정맥',desc:'노쪽피부정맥은 팔 가쪽을, �
 intthoracic:{ko:'속가슴동맥',desc:'빗장밑동맥에서 나와 복장뼈 가쪽모서리 약 1cm 바깥을 따라 내려가 근육가로막동맥과 위배벽동맥으로 갈라진다.',points:['앞갈비사이가지를 냄','위배벽동맥은 아래배벽동맥과 이어짐'],clinical:'관상동맥우회술에서 왼속가슴동맥(LIMA)을 앞심실사이가지(LAD)에 잇는 것이 표준이다(장기 개통률이 가장 높음).'},
 });
 
+
+/* 신경 설명 */
+Object.assign(INFO,{
+cauda:{ko:'말총·종말끈',desc:'척수원뿔 아래로 허리·엉치·꼬리신경 뿌리들이 말꼬리처럼 모여 내려가는 부분. 종말끈은 척수원뿔에서 꼬리뼈까지 이어지는 가는 섬유끈이다.',points:['성인 척수는 L1–L2에서 끝나므로 그 아래 척주관에는 신경뿌리만 있음'],clinical:'말총증후군: 큰 디스크 탈출·종양이 말총을 누르면 안장부위 감각저하, 배뇨·배변 장애, 양쪽 다리 약화가 생긴다 — 응급 감압이 필요하다.'},
+spinalroot:{ko:'척수신경',desc:'척수에서 앞뿌리(운동)와 뒤뿌리(감각)가 나와 척추사이구멍에서 합쳐진 것. 목 8 · 가슴 12 · 허리 5 · 엉치 5 · 꼬리 1, 모두 31쌍이다.',points:['C1–C7 신경은 같은 번호 척추뼈 위로, C8부터는 같은 번호 척추뼈 아래로 나옴','척추사이구멍을 나온 뒤 앞가지(신경얼기 형성)와 뒤가지(등 근육·피부)로 갈라짐','허리·엉치 뿌리는 척주관 안을 길게 내려간 뒤 나옴(말총)'],clinical:'목 디스크는 바로 아래 신경뿌리를 누른다(C5–C6 디스크 → C6 뿌리). 허리 디스크는 보통 뒤가쪽 탈출로 아래 번호 뿌리를 누른다(L4–L5 디스크 → L5 뿌리). 모델의 뿌리 경로는 근사치다.'},
+brachialplexus:{ko:'팔신경얼기',desc:'C5–T1 앞가지가 뿌리 → 줄기 → 갈래 → 다발 → 종말가지 순서로 재배열되어 팔 전체를 지배하는 신경망.',points:['줄기: 위(C5–6) · 중간(C7) · 아래(C8–T1) — 앞·중간목갈비근 사이로 나옴','다발: 가쪽 · 뒤 · 안쪽 — 겨드랑동맥과의 위치로 이름 붙음','종말가지: 근육피부 · 겨드랑 · 노 · 정중 · 자신경'],clinical:'Erb 마비(위줄기, C5–6): 팔이 안쪽돌림·엎침된 채 늘어짐(waiter\'s tip). Klumpke 마비(아래줄기, C8–T1): 갈퀴손, Horner 증후군 동반 가능.'},
+musculocutaneous:{ko:'근육피부신경',desc:'가쪽다발에서 나와 부리위팔근을 뚫고 위팔두갈래근과 위팔근 사이를 내려간 뒤 아래팔 가쪽피부신경이 된다.',points:['C5–C7','지배: 부리위팔근, 위팔두갈래근, 위팔근','감각: 아래팔 가쪽'],clinical:'손상 시 팔꿈치 굽힘과 뒤침이 약해지고 위팔두갈래근반사가 사라진다.'},
+axillaryn:{ko:'겨드랑신경',desc:'뒤다발에서 나와 네모공간을 지나 위팔뼈 외과목을 뒤에서 감아 돈다.',points:['C5–C6','지배: 어깨세모근, 작은원근','감각: 어깨 가쪽(regimental badge 부위)'],clinical:'위팔뼈 외과목 골절·어깨 앞쪽 탈구에서 손상 → 벌림 약화, 어깨세모근 위축.'},
+radialn:{ko:'노신경',desc:'뒤다발의 연속. 위팔뼈 뒤면 노신경고랑을 나선형으로 돌아 가쪽위관절융기 앞으로 와서 얕은가지(감각)와 깊은가지(뒤뼈사이신경, 운동)로 갈라진다.',points:['C5–T1','지배: 위팔세갈래근, 위팔노근, 아래팔 뒤칸 폄근 전부','감각: 손등 가쪽(첫째 손가락사이 등쪽)'],clinical:'위팔뼈 몸통 골절·토요일밤 마비(팔걸이 압박) → 손목처짐. 뒤뼈사이신경만 다치면 손목처짐 없이 손가락 폄만 약해진다.'},
+median:{ko:'정중신경',desc:'가쪽·안쪽다발이 겨드랑동맥 앞에서 합쳐 생기며, 위팔동맥을 따라 내려와 아래팔 앞칸 가운데를 지나 손목굴로 들어간다.',points:['C6–T1','지배: 아래팔 앞칸 대부분(자쪽손목굽힘근·깊은손가락굽힘근 안쪽 절반 제외), 엄지두덩근, 가쪽 두 벌레근','감각: 손바닥 가쪽 3½ 손가락'],clinical:'손목굴증후군: 엄지두덩 위축, 손가락 저림(Phalen·Tinel 검사). 팔꿈치 위 손상 시 축복의 손(benediction hand) 모양.'},
+ulnar:{ko:'자신경',desc:'안쪽다발에서 나와 위팔 안쪽을 내려가 안쪽위관절융기 뒤(팔꿈치굴)를 지나 자동맥과 함께 손목의 Guyon관으로 들어간다.',points:['C8–T1','지배: 자쪽손목굽힘근, 깊은손가락굽힘근 안쪽 절반, 손 내재근 대부분','감각: 손 안쪽 1½ 손가락'],clinical:'팔꿈치를 부딪치면 찌릿한 곳(funny bone)이 이 신경. 손상 시 갈퀴손, Froment 징후, 손 내재근 위축.'},
+phrenic:{ko:'가로막신경',desc:'C3–C5에서 나와 앞목갈비근 앞면을 따라 내려가 가슴안으로 들어가 심장막 옆을 지나 가로막에 이른다.',points:['"C3, 4, 5 keeps the diaphragm alive"','가로막의 유일한 운동신경, 가운데 부분 감각도 담당'],clinical:'손상 시 같은 쪽 가로막이 올라가고 기이운동을 한다. 가로막 자극 통증은 C4 피부분절인 어깨로 연관된다.'},
+vagus:{ko:'미주신경 (X)',desc:'숨뇌에서 나와 목정맥구멍을 지나 목동맥집 안(속목정맥과 목동맥 사이 뒤쪽)을 내려가 가슴·배 내장까지 분포하는 가장 긴 뇌신경.',points:['인두·후두 근육 운동, 가슴·배 내장 부교감','오른쪽은 빗장밑동맥 앞, 왼쪽은 대동맥활 앞을 지남','식도신경얼기를 거쳐 앞·뒤미주신경줄기가 되어 위로 감'],clinical:'손상 시 목젖이 건강한 쪽으로 치우치고 쉰목소리·삼킴곤란. 미주신경성 실신은 과도한 부교감 반응이다. (경로는 근사 모델)'},
+rln:{ko:'되돌이후두신경',desc:'미주신경의 가지로, 오른쪽은 빗장밑동맥 아래를, 왼쪽은 대동맥활 아래(동맥관인대 옆)를 감아 돌아 기관식도고랑을 따라 후두로 올라간다.',points:['반지방패근을 제외한 모든 후두근 지배','성대주름 아래 후두 점막 감각'],clinical:'갑상샘 수술, 대동맥활 동맥류, 왼허파 위엽 종양 등에서 손상 → 쉰목소리. 왼쪽이 더 길어서 더 잘 다친다.'},
+intercostal:{ko:'갈비사이신경',desc:'T1–T11 척수신경 앞가지. 갈비뼈 아래모서리의 갈비뼈고랑을 따라 정맥·동맥 아래에서 주행한다. T12는 갈비밑신경이다.',points:['VAN 순서(위→아래): 정맥 · 동맥 · 신경','T7–T11은 배벽까지 이어져 배근육·피부 지배','피부분절: T4 젖꼭지, T10 배꼽'],clinical:'대상포진은 한 피부분절을 따라 띠 모양 발진을 만든다. 갈비사이신경 차단은 갈비뼈 골절 통증 조절에 쓰인다.'},
+sympathetic:{ko:'교감신경줄기',desc:'척주 양옆을 따라 머리뼈 바닥에서 꼬리뼈까지 이어지는 신경절 사슬.',points:['목: 위·중간·아래목신경절 (아래목+T1 = 별신경절)','교감 신경세포체는 T1–L2 척수 가쪽뿔에 있음','가슴부위 내장신경(큰·작은·맨아래)이 배 내장으로 감'],clinical:'별신경절 손상(예: Pancoast 종양) → Horner 증후군: 눈꺼풀처짐, 동공축소, 땀없음.'},
+femoraln:{ko:'넙다리신경',desc:'L2–L4 앞가지 뒤갈래. 큰허리근 가쪽모서리로 나와 엉덩근과의 사이를 내려가 샅고랑인대 아래 넙다리동맥 가쪽으로 넙다리삼각에 들어간다.',points:['지배: 엉덩근, 넙다리빗근, 넙다리네갈래근, 두덩근','감각: 넙다리 앞, 두렁신경을 통해 종아리 안쪽'],clinical:'손상 시 무릎 폄 약화·무릎반사 소실, 계단 오르기 곤란. 넙다리 동맥 천자 시 가쪽에 있는 신경을 주의.'},
+saphenousn:{ko:'두렁신경',desc:'넙다리신경의 가장 긴 피부가지. 모음근관을 지나 무릎 안쪽에서 나와 큰두렁정맥과 함께 종아리 안쪽을 내려간다.',points:['감각: 무릎·종아리·발 안쪽'],clinical:'두렁정맥 채취나 정맥류 수술 중 손상되면 종아리 안쪽 감각이상이 생긴다.'},
+obturatorn:{ko:'폐쇄신경',desc:'L2–L4 앞가지 앞갈래. 큰허리근 안쪽모서리로 나와 골반 옆벽을 따라 폐쇄관을 지나 넙다리 안쪽칸으로 간다.',points:['지배: 모음근들(긴·짧은·큰모음근 일부), 두덩정강근, 바깥폐쇄근','감각: 넙다리 안쪽 일부'],clinical:'골반 수술·분만 중 손상 → 모음 약화. 난소 질환이 이 신경을 자극해 넙다리 안쪽 연관통을 일으키기도 한다.'},
+lfcn:{ko:'가쪽넙다리피부신경',desc:'L2–L3에서 나와 엉덩근 위를 가로질러 위앞엉덩뼈가시 바로 안쪽 샅고랑인대 아래로 넙다리 가쪽에 분포하는 감각신경.',points:['순수 감각신경'],clinical:'꽉 끼는 벨트·비만·임신으로 눌리면 넙다리 가쪽이 저리고 화끈거리는 감각이상넙다리통(meralgia paresthetica)이 생긴다.'},
+sciatic:INFO.sciatic,
+tibialn:{ko:'정강신경',desc:'궁둥신경의 안쪽 갈래. 오금 가운데를 지나 가자미근 아래에서 뒤정강동맥과 함께 내려가 안쪽복사 뒤(발목굴)에서 안쪽·가쪽발바닥신경으로 갈라진다.',points:['L4–S3','지배: 종아리 뒤칸 근육 전부, 발바닥 근육','감각: 발바닥'],clinical:'손상 시 발바닥굽힘·발가락 굽힘 불가(발꿈치 보행). 발목굴증후군 시 발바닥 저림.'},
+fibularn:{ko:'온종아리신경',desc:'궁둥신경의 가쪽 갈래. 넙다리두갈래근 힘줄을 따라 내려가 종아리뼈목을 감아 돌며 깊은종아리신경과 얕은종아리신경으로 갈라진다.',points:['깊은 — 앞칸 근육(발등굽힘), 첫째 발가락사이 피부','얕은 — 가쪽칸 근육(가쪽번짐), 발등 피부 대부분'],clinical:'종아리뼈목에서 피부 바로 밑을 지나 가장 흔히 다치는 다리 신경 → 발처짐, 발등 감각저하, 높이 들어 걷는 걸음.'},
+gluteal:{ko:'볼기신경',desc:'위볼기신경은 궁둥구멍근 위로, 아래볼기신경은 아래로 큰궁둥구멍을 빠져나온다.',points:['위볼기신경(L4–S1): 중간·작은볼기근, 넙다리근막긴장근','아래볼기신경(L5–S2): 큰볼기근'],clinical:'위볼기신경 손상 → Trendelenburg 징후. 볼기 근육주사는 위가쪽 1/4에 놓는다.'},
+pudendal:{ko:'음부신경',desc:'S2–S4에서 나와 큰궁둥구멍으로 나갔다가 궁둥뼈가시를 돌아 작은궁둥구멍으로 회음부에 들어간다(음부관).',points:['지배: 바깥항문조임근, 바깥요도조임근, 회음 근육','감각: 회음부, 생식기 피부'],clinical:'분만 시 음부신경 차단 마취는 궁둥뼈가시를 기준으로 한다.'},
+cn1:{ko:'후각신경 (I)',desc:'코안 천장의 후각상피에서 나온 가는 섬유들이 벌집뼈 체판을 지나 후각망울에 닿고, 후각로를 따라 뇌로 간다.',points:['유일하게 시상을 거치지 않는 감각'],clinical:'앞머리뼈우묵 골절 시 체판이 깨지면 후각상실과 뇌척수액 코누출이 생길 수 있다. 후각저하는 파킨슨병의 초기 증상이기도 하다.'},
+cn3:{ko:'눈돌림신경 (III)',desc:'중간뇌 앞면(다리사이오목)에서 나와 해면정맥굴 가쪽벽을 지나 위눈확틈새로 눈확에 들어간다.',points:['지배: 위·아래·안쪽곧은근, 아래빗근, 위눈꺼풀올림근','부교감: 동공조임근·섬모체근 (섬모체신경절 경유)'],clinical:'뒤교통동맥 동맥류가 누르면 동공 확대가 먼저 오고, 당뇨성 마비는 동공이 보존되는 경우가 많다. 마비 시 눈이 아래가쪽(down and out).'},
+cn4:{ko:'도르래신경 (IV)',desc:'뇌줄기 뒤면(아래둔덕 아래)에서 나오는 유일한 뇌신경. 가장 가늘고 머리안 주행이 가장 길다.',points:['지배: 위빗근'],clinical:'머리 외상에 약하다. 마비 시 계단을 내려갈 때 복시가 생기고 머리를 반대쪽으로 기울인다.'},
+cn5:{ko:'삼차신경 (V)',desc:'다리뇌 가쪽에서 나와 삼차신경절을 이룬 뒤 눈신경(V1), 위턱신경(V2), 아래턱신경(V3)으로 갈라진다.',points:['V1 — 위눈확틈새 / V2 — 원형구멍 / V3 — 타원구멍','감각: 얼굴 피부, 각막, 코·입안','운동(V3): 씹기근육, 턱목뿔근, 두힘살근 앞힘살'],clinical:'삼차신경통: 한쪽 얼굴에 전기 같은 짧은 통증. 각막반사의 들신경은 V1, 날신경은 VII.'},
+cn6:{ko:'갓돌림신경 (VI)',desc:'다리뇌와 숨뇌 사이에서 나와 비탈(clivus)을 따라 길게 올라간 뒤 해면정맥굴 안을 지나 가쪽곧은근에 간다.',points:['지배: 가쪽곧은근'],clinical:'머리속압 상승 시 가장 먼저 늘어나 마비되는 경향(위치 판단에 도움이 안 되는 징후). 마비 시 눈이 안쪽으로 몰림.'},
+cn7:{ko:'얼굴신경 (VII)',desc:'다리뇌·숨뇌 경계에서 나와 속귀길 → 얼굴신경관 → 붓꼭지구멍으로 나와 귀밑샘 안에서 다섯 가지로 갈라진다.',points:['얼굴 표정근 (관자·광대·볼·아래턱모서리·목가지)','혀 앞 2/3 맛(고실끈), 턱밑샘·혀밑샘·눈물샘 분비','등자근 — 큰 소리 감쇠'],clinical:'Bell 마비는 이마까지 포함한 한쪽 얼굴 전체 마비. 중추성(뇌졸중) 마비는 이마가 보존된다.'},
+cn8:{ko:'속귀신경 (VIII)',desc:'다리뇌·숨뇌 경계에서 얼굴신경과 함께 속귀길로 들어가 달팽이(청각)와 안뜰기관(평형)에 분포한다.',points:['달팽이신경 — 청각 / 안뜰신경 — 평형'],clinical:'청신경집종(전정신경집종)은 한쪽 감각신경성 난청과 이명으로 시작한다.'},
+cn9:{ko:'혀인두신경 (IX)',desc:'숨뇌에서 나와 목정맥구멍을 지나 붓인두근을 따라 인두와 혀 뒤쪽으로 간다.',points:['혀 뒤 1/3 맛과 감각, 구역반사의 들신경','목동맥팽대·목동맥토리 감각 → 혈압·호흡 반사','귀밑샘 분비(작은바위신경)'],clinical:'구역반사: 들신경 IX, 날신경 X.'},
+cn11:{ko:'더부신경 (XI)',desc:'목정맥구멍으로 나와 목빗근을 뚫거나 그 아래를 지나 목 뒤삼각을 비스듬히 가로질러 등세모근에 이른다.',points:['지배: 목빗근, 등세모근'],clinical:'뒤삼각 수술 중 손상되기 쉬워 어깨 으쓱 약화·어깨 처짐이 생긴다.'},
+cn12:{ko:'혀밑신경 (XII)',desc:'숨뇌 앞면에서 나와 혀밑신경관을 지나 목동맥 바깥쪽을 둥글게 돌아 목뿔뼈 위로 혀에 들어간다.',points:['지배: 혀의 모든 근육(입천장혀근 제외)'],clinical:'마비 시 혀를 내밀면 다친 쪽으로 치우친다.'},
+});
+
 for(const [r,n] of [['C',7],['T',12],['L',5]]) for(let i=1;i<=n;i++){ const o=VOVR[r+i]||{}; INFO[r+i]={...VREG[r],...o}; }
 
 /* ---------------- 렌더러 ---------------- */
@@ -540,6 +583,7 @@ function colorOf(p){
     if(en.startsWith('taenia')) return 0xa86d48; return m[k]??0xd09070; }
   if(p.sys==='urinary') return {kidney:0xa3473a,ureter:0xd8b26a,bladder:0xd9b46e,urethra:0xd8b26a}[k]??0xc09050;
   if(p.sys==='endocrine') return 0xe3a33f;
+  if(p.sys==='nerves') return k==='spinalcord'||k==='cauda'?0xf6e7b0:k==='sympathetic'?0xd9b85a:k==='vagus'||k==='rln'?0xf0c040:0xf5d34f;
   if(p.sys==='muscular') return /tendon|ligament|membrane|tract|linea/i.test(p.en)?0xe6dfcc:0xb5473f;
   if(p.sys==='arterial') return 0xd8343a;
   if(p.sys==='venous') return 0x3d66c8;
@@ -571,7 +615,7 @@ function buildMeshes(p,b){
   const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
   if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
   const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
-  m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId);
+  m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId); if(typeof clipOn!=='undefined'&&clipOn) mat.side=THREE.DoubleSide;
   groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m);
 }
 async function loadFiles(files,onBytes){
@@ -604,7 +648,7 @@ async function ensureSys(s){
 
 /* ---------------- 상태 ---------------- */
 const sysOn={}; for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
-let selId=null, hoverId=null, isoId=null, xray=false;
+let selId=null, hoverId=null, isoId=null, xray=false; const sysOp={};
 const quiz={on:false,type:'name',target:null,answered:false,score:0,total:0};
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 function updateVisibility(){
@@ -615,7 +659,7 @@ function updateVisibility(){
 function setOp(m,o){ const t=o<1; if(m.material.transparent!==t) m.material.needsUpdate=true; m.material.transparent=t; m.material.opacity=o; m.material.depthWrite=!t; }
 function applyOpacity(ghostId=null){
   for(const p of Object.values(parts)) p.meshes.forEach(m=>{
-    let o=m.userData.baseOpacity; if(xray&&m.userData.bone) o=Math.min(o,0.18);
+    let o=m.userData.baseOpacity; if(xray&&m.userData.bone) o=Math.min(o,0.18); o=Math.min(o,sysOp[p.sys]??1);
     if(ghostId&&p.id!==ghostId) o=Math.min(o,0.08);
     setOp(m,o); });
 }
@@ -646,6 +690,7 @@ const info=document.getElementById('info');
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function select(id,{focus=false}={}){
   selId=id; paint();
+  try{ history.replaceState(null,'',id?'#'+slugOf(parts[id]):location.pathname+location.search); }catch(e){}
   if(!id){ info.classList.add('hidden'); return; }
   const p=parts[id], S=SYSTEMS[p.sys], I=p.info;
   const general = I && I.ko && I.ko!==p.ko.replace(/^(왼쪽 |오른쪽 |왼|오른)/,'') ? `<div class="muted" style="margin:-4px 0 8px">아래 설명은 <b>${esc(I.ko)}</b> 전체에 대한 내용이에요.</div>`:'';
@@ -657,10 +702,12 @@ function select(id,{focus=false}={}){
       ${I.points?.length?`<h4>핵심 포인트</h4><ul>${I.points.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
       ${I.clinical?`<h4>임상 연관</h4><p class="clin">${esc(I.clinical)}</p>`:''}`
      :`<p class="muted">이 구조물의 상세 설명은 아직 준비 중이에요.</p>`}
-    <div class="actions"><button class="btn" id="bFocus">확대해서 보기</button><button class="btn pri" id="bIso">${isoId===id?'전체 보기':'이것만 보기'}</button></div>`;
+    ${p.sys==='nerves'&&!/branch|ciliary|ethmoidal|frontal|lacrimal|nasociliary|supra|infratrochlear|ophthalmic|^(left|right) trochlear/i.test(p.en)?'<p class="muted" style="margin-top:10px">ⓘ 원본 데이터에 없는 신경이라, 주변 뼈·혈관·근육 위치를 기준으로 경로를 만든 근사 모델이에요.</p>':''}
+    <div class="actions"><button class="btn" id="bLink">링크 복사</button><button class="btn" id="bFocus">확대해서 보기</button><button class="btn pri" id="bIso">${isoId===id?'전체 보기':'이것만 보기'}</button></div>`;
   info.classList.remove('hidden');
   document.getElementById('infoClose').onclick=()=>select(null);
   document.getElementById('bFocus').onclick=()=>focusPart(p);
+  document.getElementById('bLink').onclick=async e=>{ try{ await navigator.clipboard.writeText(location.href); e.target.textContent='복사됨 ✓'; }catch(err){ e.target.textContent='주소창 링크를 복사하세요'; } setTimeout(()=>{ e.target.textContent='링크 복사'; },1800); };
   document.getElementById('bIso').onclick=()=>{ isoId=isoId===id?null:id; updateVisibility(); select(id); if(isoId) focusPart(p); };
   if(focus) focusPart(p);
 }
@@ -674,8 +721,9 @@ function buildList(){
     const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>a.ko.localeCompare(b.ko,'ko'));
     const d=document.createElement('details'); d.className='sys'; d.dataset.sys=s;
     d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[s]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
-      <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${S.lazy&&!loaded[s]?'⤓ ':''}${ps.length}</span><span class="chev">▶</span></summary>`;
+      <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${S.lazy&&!loaded[s]?'⤓ ':''}${ps.length}</span><button class="opbtn" data-op="${s}" title="이 계통 투명도">100%</button><span class="chev">▶</span></summary>`;
     d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; if(sysOn[s]) ensureSys(s); updateVisibility(); };
+    d.querySelector('.opbtn').onclick=e=>{ e.preventDefault(); e.stopPropagation(); const seq=[1,0.45,0.15]; sysOp[s]=seq[(seq.indexOf(sysOp[s]??1)+1)%3]; e.target.textContent=Math.round(sysOp[s]*100)+'%'; applyOpacity(); };
     const mk=p=>{ const b=document.createElement('button'); b.className='item'; b.dataset.id=p.id; b.dataset.q=(p.ko+' '+(p.old||'')+' '+p.en).toLowerCase();
       b.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`;
       b.onclick=async()=>{ if(!sysOn[p.sys]){ sysOn[p.sys]=true; d.querySelector('input').checked=true; updateVisibility(); } await ensureSys(p.sys); select(p.id,{focus:true}); side.classList.remove('open'); }; return b; };
@@ -697,6 +745,35 @@ document.getElementById('spin').onchange=e=>{ controls.autoRotate=e.target.check
 const side=document.getElementById('side');
 document.getElementById('menuToggle').onclick=()=>side.classList.toggle('open');
 
+/* ---------------- 공유 링크 ---------------- */
+const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+async function openHash(){
+  const h=decodeURIComponent(location.hash.slice(1)); if(!h) return;
+  const p=Object.values(parts).find(q=>slugOf(q)===h); if(!p) return;
+  if(!sysOn[p.sys]){ sysOn[p.sys]=true; const i=document.querySelector(`details[data-sys=${p.sys}] input`); if(i) i.checked=true; updateVisibility(); }
+  await ensureSys(p.sys); if(selId!==p.id) select(p.id,{focus:true});
+}
+addEventListener('hashchange',openHash);
+
+/* ---------------- 단면 보기 ---------------- */
+const clipPlane=new THREE.Plane(new THREE.Vector3(0,-1,0),1); let clipOn=false, clipFlipped=false;
+const clipMode=document.getElementById('clipMode'), clipPos=document.getElementById('clipPos');
+function updateClip(){
+  const mode=clipMode.value; clipOn=mode!=='off'; document.getElementById('clipRow').style.display=clipOn?'flex':'none';
+  renderer.clippingPlanes=clipOn?[clipPlane]:[];
+  for(const m of pickables){ const want=clipOn?THREE.DoubleSide:THREE.FrontSide; if(m.material.side!==want){ m.material.side=want; m.material.needsUpdate=true; } }
+  if(!clipOn) return;
+  const ax={axial:1,sagittal:0,coronal:2}[mode], lo=MAN.lo[ax], hi=lo+MAN.sc[ax]*65535;
+  const c=lo+(+clipPos.value)*(hi-lo), n=new THREE.Vector3(); n.setComponent(ax,clipFlipped?1:-1);
+  clipPlane.normal.copy(n); clipPlane.constant=clipFlipped?-c:c;
+}
+clipMode.onchange=()=>{ const d={axial:0.62,sagittal:0.5,coronal:0.5}[clipMode.value]; if(d!=null) clipPos.value=d; updateClip();
+  if(clipMode.value==='sagittal') flyTo(HOME.t,V(...VIEWS.right));
+  else if(clipMode.value==='axial'){ const y=clipPlane.constant; flyTo(V(0,y-0.05,0),V(0.25,y+1.2,1.3)); }
+  else if(clipMode.value!=='off') flyTo(HOME.t,HOME.p); };
+clipPos.oninput=updateClip;
+document.getElementById('clipFlip').onclick=()=>{ clipFlipped=!clipFlipped; updateClip(); };
+
 /* ---------------- 선택 ---------------- */
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), tip=document.getElementById('tip');
 function pick(ev){
@@ -704,7 +781,8 @@ function pick(ev){
   ray.setFromCamera(ndc,camera);
   const vis=pickables.filter(m=>m.visible && m.material.opacity>0.1);
   const pref = xray ? vis.filter(m=>!m.userData.bone) : vis;
-  let h=ray.intersectObjects(pref,false); if(!h.length && xray) h=ray.intersectObjects(vis,false);
+  const cf=hs=>clipOn?hs.filter(x=>clipPlane.distanceToPoint(x.point)>=0):hs;
+  let h=cf(ray.intersectObjects(pref,false)); if(!h.length && xray) h=cf(ray.intersectObjects(vis,false));
   return h[0]?.object.userData.id||null;
 }
 let down=null, moveRaf=0, lastEv=null;
@@ -782,7 +860,7 @@ function loop(){
   controls.update(); renderer.render(scene,camera);
 }
 loop();
-load().then(()=>{ buildList(); updateVisibility(); paint(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
+load().then(()=>{ buildList(); updateVisibility(); paint(); openHash(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
 </script>
 </body>
 </html>
