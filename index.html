@@ -107,7 +107,7 @@ details.sub>summary::-webkit-details-marker{display:none}
   <aside id="side">
     <header>
       <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
-      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다</div>
+      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>근육·동맥·정맥은 아래 목록에서 켜세요</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
     </header>
     <div class="controls">
@@ -120,7 +120,7 @@ details.sub>summary::-webkit-details-marker{display:none}
   </aside>
   <main id="stage">
     <canvas id="c"></canvas>
-    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 처음 한 번만 오래 걸려요</small></div></div>
+    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 근육·혈관은 켤 때 따로 불러와요</small></div></div>
     <div class="bar" id="modeBar">
       <div class="seg" id="menuBtn"><button id="menuToggle">☰ 목록</button></div>
       <div class="seg"><button data-mode="explore" class="on">탐색</button><button data-mode="quiz">퀴즈</button></div>
@@ -159,8 +159,11 @@ const SYSTEMS = {
   digestive:  {ko:'소화계', dot:'#d08a55'},
   urinary:    {ko:'비뇨계', dot:'#a777d6'},
   endocrine:  {ko:'내분비계', dot:'#4fc3a1'},
+  muscular:   {ko:'근육계', dot:'#c0504d', lazy:true},
+  arterial:   {ko:'동맥', dot:'#ff4d4d', lazy:true},
+  venous:     {ko:'정맥', dot:'#4d7cff', lazy:true},
 };
-const GROUP_ORDER=['머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
+const GROUP_ORDER=['심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
 
 const INFO = {
 skull:{sys:'skeletal',ko:'머리뼈',old:'두개골',en:'Skull (Cranium)',
@@ -423,6 +426,67 @@ biliary:{ko:'쓸개길',desc:'간에서 만들어진 담즙이 좌우 간관 →
 urethra:{ko:'요도',desc:'방광의 소변을 몸 밖으로 내보내는 관. 남성 요도는 전립샘부·막부·해면체부로 나뉘며 약 20cm다.',points:['막부: 바깥요도조임근(수의근)'],clinical:'골반 골절 시 남성 요도 막부 손상이 생길 수 있어, 요도구 출혈이 있으면 도뇨관 삽입 전에 확인이 필요하다.'},
 thymus:{ko:'가슴샘',desc:'위세로칸 앞쪽에 있는 림프기관으로 T세포가 성숙하는 곳. 사춘기 이후 점차 지방으로 바뀐다.',points:['T세포의 양성·음성 선택이 일어남'],clinical:'가슴샘종은 중증근무력증과 동반되는 경우가 많다. DiGeorge 증후군에서는 가슴샘이 형성되지 않는다.'},
 });
+
+/* 근육 · 혈관 설명 (기시 O / 정지 I / 신경 N / 작용 A) */
+Object.assign(INFO,{
+deltoid:{ko:'어깨세모근',desc:'어깨를 둥글게 덮는 삼각형 근육으로 빗장부분·봉우리부분·가시부분으로 나뉜다.',points:['O: 빗장뼈 가쪽 1/3, 봉우리, 어깨뼈가시','I: 위팔뼈 세모근거친면','N: 겨드랑신경 (C5–C6)','A: 팔 벌림(약 15–90°), 앞부분 굽힘·안쪽돌림, 뒷부분 폄·가쪽돌림'],clinical:'위팔뼈 외과목 골절이나 어깨 탈구 때 겨드랑신경이 다치면 벌림이 약해지고 어깨 가쪽 피부감각이 떨어진다. 근육주사 부위로도 쓰인다.'},
+pecmajor:{ko:'큰가슴근',desc:'가슴 앞면의 크고 부채꼴인 근육. 빗장부분·복장갈비부분·배부분으로 나뉜다.',points:['O: 빗장뼈 안쪽 절반, 복장뼈와 위쪽 갈비연골, 배바깥빗근 널힘줄','I: 위팔뼈 결절사이고랑 가쪽입술','N: 가쪽·안쪽가슴신경 (C5–T1)','A: 위팔 모음·안쪽돌림, 빗장부분은 굽힘'],clinical:'아래모서리가 겨드랑 앞벽을 이룬다. Poland 증후군에서는 복장갈비부분이 선천적으로 없다.'},
+pecminor:{ko:'작은가슴근',desc:'큰가슴근 아래에 있는 얇은 삼각형 근육.',points:['O: 3–5번 갈비뼈','I: 어깨뼈 부리돌기','N: 안쪽가슴신경','A: 어깨뼈 내림·앞당김'],clinical:'겨드랑동맥을 세 부분으로 나누는 기준이 된다(작은가슴근 앞쪽·뒤쪽·뒤가쪽).'},
+trapezius:{ko:'등세모근',desc:'목 뒤와 등 위쪽을 덮는 큰 마름모꼴 근육. 내림·가로·오름부분으로 나뉜다.',points:['O: 바깥뒤통수뼈융기, 목덜미인대, C7–T12 가시돌기','I: 빗장뼈 가쪽 1/3, 봉우리, 어깨뼈가시','N: 더부신경(XI) — 운동','A: 어깨뼈 올림(위)·뒤당김(가로)·내림(아래), 위쪽돌림'],clinical:'목 뒤삼각 림프절 생검 중 더부신경이 다치면 어깨를 으쓱하기 어렵고 어깨가 처진다.'},
+biceps:{ko:'위팔두갈래근',desc:'위팔 앞칸의 두 갈래 근육. 긴갈래 힘줄은 어깨관절 안을 지난다.',points:['O: 긴갈래 — 어깨뼈 관절위결절 / 짧은갈래 — 부리돌기','I: 노뼈거친면, 두갈래근널힘줄','N: 근육피부신경 (C5–C6)','A: 아래팔 뒤침(가장 강력), 팔꿈치 굽힘'],clinical:'위팔두갈래근반사로 C5–C6를 검사한다. 긴갈래 힘줄이 끊어지면 근육이 아래로 뭉친다(Popeye 징후).'},
+triceps:{ko:'위팔세갈래근',desc:'위팔 뒤칸을 차지하는 유일한 큰 근육.',points:['O: 긴갈래 — 관절아래결절 / 가쪽갈래 — 노신경고랑 위 / 안쪽갈래 — 노신경고랑 아래','I: 자뼈 팔꿈치머리','N: 노신경 (C6–C8)','A: 팔꿈치 폄, 긴갈래는 어깨 폄도 보조'],clinical:'위팔세갈래근반사로 C7을 검사한다. 위팔뼈 몸통 골절 시 노신경은 다쳐도 세갈래근 가지는 위에서 나와 대개 보존된다.'},
+brachialis:{ko:'위팔근',desc:'위팔두갈래근 아래 깊은 곳에 있는 팔꿈치 굽힘의 주동근.',points:['O: 위팔뼈 앞면 아래 절반','I: 자뼈 갈고리돌기·자뼈거친면','N: 근육피부신경 (일부 노신경)','A: 팔꿈치 굽힘 (아래팔 자세와 무관)'],clinical:'팔꿈치 외상 뒤 위팔근 안에 이소성 골화(골화근염)가 생길 수 있다.'},
+brachioradialis:{ko:'위팔노근',desc:'아래팔 가쪽 가장자리를 따라 내려가는 근육. 노신경 지배지만 굽힘 작용을 한다.',points:['O: 위팔뼈 가쪽 관절융기위능선','I: 노뼈 붓돌기 바로 위','N: 노신경 (C5–C6)','A: 반쯤 엎친 자세에서 팔꿈치 굽힘'],clinical:'위팔노근반사로 C6를 검사한다.'},
+forearmflex:{ko:'아래팔 앞칸 근육',desc:'손목·손가락을 굽히고 아래팔을 엎치는 근육들. 얕은층 대부분이 위팔뼈 안쪽위관절융기(온굽힘근기시)에서 시작한다.',points:['N: 대부분 정중신경','예외: 자쪽손목굽힘근, 깊은손가락굽힘근 안쪽 절반 → 자신경','얕은→깊은: 원엎침근·노쪽손목굽힘근·긴손바닥근·자쪽손목굽힘근 / 얕은손가락굽힘근 / 깊은손가락굽힘근·긴엄지굽힘근·네모엎침근'],clinical:'안쪽위관절융기염(골퍼 엘보). 손목굴에는 손가락굽힘근 힘줄 9개와 정중신경이 지나며, 긴손바닥근은 손목굴 밖에 있다.'},
+forearmext:{ko:'아래팔 뒤칸 근육',desc:'손목·손가락을 펴는 근육들. 얕은층 대부분이 위팔뼈 가쪽위관절융기(온폄근기시)에서 시작한다.',points:['N: 노신경 (깊은가지 → 뒤뼈사이신경)','깊은층: 긴엄지벌림근·짧은/긴엄지폄근·집게폄근','해부학적 코담배갑: 긴엄지벌림근·짧은엄지폄근(앞) / 긴엄지폄근(뒤) 사이'],clinical:'가쪽위관절융기염(테니스 엘보)은 주로 짧은노쪽손목폄근 기시부의 문제다. De Quervain 건초염은 긴엄지벌림근·짧은엄지폄근 힘줄에 생긴다.'},
+rotator:{ko:'돌림근띠',desc:'어깨관절을 감싸 위팔뼈머리를 접시오목에 붙잡아 주는 네 근육(SITS): 가시위근·가시아래근·작은원근·어깨밑근.',points:['가시위근 — 벌림 시작(0–15°), 어깨위신경','가시아래근 — 가쪽돌림, 어깨위신경','작은원근 — 가쪽돌림, 겨드랑신경','어깨밑근 — 안쪽돌림, 위·아래어깨밑신경'],clinical:'가시위근 힘줄이 봉우리 아래에서 끼이며 가장 흔히 찢어진다(충돌증후군, 돌림근띠 파열).'},
+serratus:{ko:'앞톱니근',desc:'가슴우리 옆면을 톱니 모양으로 감싸는 근육.',points:['O: 1–8(9)번 갈비뼈 바깥면','I: 어깨뼈 안쪽모서리 앞면','N: 긴가슴신경 (C5–C7)','A: 어깨뼈 앞당김, 위쪽돌림 (팔을 90° 이상 올릴 때)'],clinical:'긴가슴신경 손상(유방절제술 겨드랑 림프절 청소 등) → 벽을 밀 때 어깨뼈가 튀어나오는 날개어깨뼈.'},
+rhomboid:{ko:'마름근',desc:'척주와 어깨뼈 안쪽모서리를 잇는 두 근육(큰·작은마름근).',points:['O: C7–T5 가시돌기','I: 어깨뼈 안쪽모서리','N: 등쪽어깨신경 (C5)','A: 어깨뼈 뒤당김, 아래쪽돌림'],clinical:'등쪽어깨신경 손상 시 어깨뼈가 바깥으로 벌어진다.'},
+scm:{ko:'목빗근',desc:'목을 비스듬히 가로지르며 목을 앞삼각과 뒤삼각으로 나누는 근육.',points:['O: 복장뼈자루, 빗장뼈 안쪽 1/3','I: 관자뼈 꼭지돌기, 위목덜미선','N: 더부신경(XI)','A: 한쪽 — 머리를 같은 쪽으로 기울이고 얼굴을 반대쪽으로 돌림 / 양쪽 — 목 굽힘'],clinical:'선천성 근육성 사경: 영아에서 한쪽 목빗근이 짧아져 머리가 기울어진다.'},
+scalene:{ko:'목갈비근',desc:'목뼈 가로돌기에서 위쪽 갈비뼈로 내려가는 세 근육(앞·중간·뒤).',points:['앞·중간목갈비근 → 1번 갈비뼈 / 뒤목갈비근 → 2번 갈비뼈','앞·중간목갈비근 사이: 팔신경얼기 줄기, 빗장밑동맥','빗장밑정맥은 앞목갈비근 앞을 지남','A: 갈비뼈를 들어 올리는 보조 들숨근'],clinical:'목갈비근 사이가 좁아지면 팔신경얼기·빗장밑동맥이 눌리는 가슴문증후군이 생긴다.'},
+extoblique:{ko:'배바깥빗근',desc:'배벽 가장 바깥층 근육. 섬유가 아래안쪽으로 주행한다(주머니에 손을 넣는 방향).',points:['O: 5–12번 갈비뼈 바깥면','I: 백색선, 두덩결절, 엉덩뼈능선 앞 절반','아래모서리가 말려 샅고랑인대가 됨','N: 아래 갈비사이신경(T7–T11), 갈비밑신경, 엉덩아랫배신경','A: 몸통 굽힘·반대쪽 돌림, 배압 상승'],clinical:'널힘줄에 얕은샅고랑구멍이 있다. 간접 샅고랑탈장은 깊은샅고랑구멍 → 샅고랑관 → 얕은샅고랑구멍으로 나온다.'},
+intercostal:{ko:'갈비사이근',desc:'갈비뼈 사이를 채우는 세 층의 근육(바깥·속·맨속).',points:['바깥갈비사이근: 섬유가 아래앞쪽 — 들숨','속·맨속갈비사이근: 날숨 보조','신경혈관다발(VAN)은 속과 맨속갈비사이근 사이','N: 갈비사이신경'],clinical:'흉관은 신경혈관다발을 피해 갈비뼈 위모서리를 따라 넣는다.'},
+erector:{ko:'척주세움근 등 고유등근육',desc:'척주를 따라 세로로 뻗은 깊은 등근육. 가쪽부터 엉덩갈비근·가장긴근·가시근 세 기둥이다.',points:['N: 척수신경 뒤가지','A: 척주 폄·옆굽힘, 자세 유지','더 깊은 층: 가로가시근(반가시근·뭇갈래근·돌림근)'],clinical:'허리 통증의 흔한 원인인 근육 긴장이 잘 생긴다. 뒤가지 지배라는 점이 앞쪽 근육(앞가지 지배)과 구별된다.'},
+diaphragm:INFO.diaphragm,
+gmax:{ko:'큰볼기근',desc:'엉덩이를 이루는 가장 크고 얕은 근육.',points:['O: 엉덩뼈 뒤면, 엉치뼈·꼬리뼈 뒤면, 엉치결절인대','I: 엉덩정강띠, 넙다리뼈 볼기근거친면','N: 아래볼기신경 (L5–S2)','A: 엉덩관절 폄(계단 오르기, 앉았다 일어나기), 가쪽돌림'],clinical:'평지 보행에는 크게 쓰이지 않지만 마비되면 일어서거나 계단을 오르기 어렵다.'},
+gmed:{ko:'중간·작은볼기근',desc:'큰볼기근 아래에서 엉덩관절을 벌리고 걸을 때 골반을 수평으로 유지하는 근육.',points:['O: 엉덩뼈 바깥면','I: 넙다리뼈 큰돌기','N: 위볼기신경 (L4–S1)','A: 벌림, 앞섬유는 안쪽돌림'],clinical:'Trendelenburg 징후: 한쪽 위볼기신경·중간볼기근이 약하면, 그쪽 다리로 섰을 때 반대쪽 골반이 처진다.'},
+piriformis:{ko:'궁둥구멍근',desc:'엉치뼈 앞면에서 큰궁둥구멍을 지나 큰돌기로 가는 근육. 볼기 부위 구조물의 위치를 정하는 기준이다.',points:['O: 엉치뼈 앞면','I: 넙다리뼈 큰돌기 위끝','N: 궁둥구멍근신경 (S1–S2)','A: 엉덩관절 가쪽돌림','위로: 위볼기신경·혈관 / 아래로: 궁둥신경, 아래볼기신경·혈관, 음부신경'],clinical:'궁둥구멍근 증후군: 근육이 궁둥신경을 눌러 좌골신경통과 비슷한 통증이 생긴다.'},
+hiprot:{ko:'엉덩관절 가쪽돌림근',desc:'궁둥구멍근 아래의 짧은 가쪽돌림근들: 위·아래쌍둥이근, 속·바깥폐쇄근, 넙다리네모근.',points:['A: 엉덩관절 가쪽돌림, 넙다리뼈머리 안정','속폐쇄근은 작은궁둥구멍을 지나 꺾임','N: 속폐쇄근신경(위쌍둥이근 포함), 넙다리네모근신경(아래쌍둥이근 포함), 바깥폐쇄근은 폐쇄신경'],clinical:'엉덩관절 뒤쪽 접근 수술 시 이 근육들을 떼었다 다시 붙인다.'},
+iliopsoas:{ko:'엉덩허리근',desc:'큰허리근과 엉덩근이 합쳐진 엉덩관절의 가장 강한 굽힘근.',points:['O: 큰허리근 — T12–L5 몸통·가로돌기 / 엉덩근 — 엉덩오목','I: 넙다리뼈 작은돌기','N: 큰허리근 — L1–L3 앞가지 / 엉덩근 — 넙다리신경','A: 엉덩관절 굽힘'],clinical:'허리근 징후: 다리를 뒤로 펼 때 통증 → 뒤막창자꼬리염 등 허리근 주위 염증. 척추 결핵에서 허리근 고름집이 생길 수 있다.'},
+quadriceps:{ko:'넙다리네갈래근',desc:'넙다리 앞칸의 네 근육: 넙다리곧은근·가쪽넓은근·중간넓은근·안쪽넓은근.',points:['O: 넙다리곧은근 — 아래앞엉덩뼈가시 / 넓은근들 — 넙다리뼈','I: 무릎뼈 → 무릎인대 → 정강뼈거친면','N: 넙다리신경 (L2–L4)','A: 무릎 폄, 넙다리곧은근은 엉덩관절 굽힘도'],clinical:'무릎반사(L3–L4). 안쪽넓은근 아래 섬유는 무릎뼈가 가쪽으로 빠지지 않게 잡아 준다.'},
+hamstring:{ko:'넙다리뒤근육 (햄스트링)',desc:'넙다리 뒤칸의 반힘줄근·반막근·넙다리두갈래근.',points:['O: 궁둥뼈결절 (두갈래근 짧은갈래는 거친선)','I: 반힘줄근·반막근 — 정강뼈 안쪽 / 두갈래근 — 종아리뼈머리','N: 궁둥신경 정강부분 (짧은갈래만 온종아리부분)','A: 엉덩관절 폄, 무릎 굽힘'],clinical:'단거리 달리기에서 흔히 늘어나거나 찢어진다. 청소년에서는 궁둥뼈결절 견열골절이 생길 수 있다.'},
+adductors:{ko:'넙다리 안쪽칸 (모음근)',desc:'넙다리를 몸쪽으로 모으는 근육들: 긴·짧은·큰모음근, 두덩정강근, 두덩근 등.',points:['O: 두덩뼈·궁둥뼈','I: 넙다리뼈 거친선 (두덩정강근은 정강뼈 안쪽 — 거위발)','N: 주로 폐쇄신경 (L2–L4) / 큰모음근 햄스트링부분은 궁둥신경, 두덩근은 넙다리신경','큰모음근의 모음근틈새로 넙다리동·정맥이 오금으로 감'],clinical:'운동선수의 사타구니 부상(groin pull)은 주로 긴모음근에서 생긴다.'},
+sartorius:{ko:'넙다리빗근',desc:'인체에서 가장 긴 근육. 넙다리 앞을 비스듬히 가로지른다.',points:['O: 위앞엉덩뼈가시','I: 정강뼈 몸쪽 안쪽면 (거위발)','N: 넙다리신경','A: 엉덩관절 굽힘·벌림·가쪽돌림 + 무릎 굽힘 (양반다리 자세)','넙다리삼각의 가쪽 경계, 모음근관의 지붕'],clinical:'거위발(넙다리빗근·두덩정강근·반힘줄근) 부위 윤활주머니염이 무릎 안쪽 통증의 원인이 된다.'},
+triceps_surae:{ko:'종아리세갈래근',desc:'장딴지근(두 갈래)과 가자미근이 발꿈치힘줄(아킬레스힘줄)로 모여 발꿈치뼈에 붙는다.',points:['O: 장딴지근 — 넙다리뼈 관절융기 위 / 가자미근 — 정강뼈 가자미근선, 종아리뼈 머리','I: 발꿈치힘줄 → 발꿈치뼈융기','N: 정강신경 (S1–S2)','A: 발바닥굽힘, 장딴지근은 무릎 굽힘도'],clinical:'발목반사(S1). 아킬레스힘줄 파열 시 Thompson 검사(종아리를 짜도 발바닥굽힘이 없음) 양성. 가자미근 정맥얼기는 심부정맥혈전의 호발 부위.'},
+tibant:{ko:'앞정강근',desc:'정강이 바로 가쪽에서 만져지는 종아리 앞칸의 대표 근육.',points:['O: 정강뼈 가쪽면 위 2/3, 뼈사이막','I: 안쪽쐐기뼈, 1번 발허리뼈 바닥','N: 깊은종아리신경 (L4–L5)','A: 발등굽힘, 안쪽번짐'],clinical:'마비 시 발처짐(걸을 때 발끝이 끌려 다리를 높이 듦). 앞칸 구획증후군의 주된 침범 근육.'},
+legant:{ko:'종아리 앞칸 근육',desc:'발등을 굽히고 발가락을 펴는 근육들: 앞정강근, 긴엄지폄근, 긴발가락폄근, 셋째종아리근.',points:['N: 깊은종아리신경','A: 발등굽힘, 발가락 폄','동맥: 앞정강동맥 → 발등동맥'],clinical:'온종아리신경 손상 시 앞칸·가쪽칸이 함께 마비되어 발처짐과 안쪽번짐 자세가 된다.'},
+legpost:{ko:'종아리 뒤칸 깊은층 근육',desc:'뒤정강근, 긴발가락굽힘근, 긴엄지굽힘근, 오금근 등.',points:['N: 정강신경','안쪽복사 뒤 순서(앞→뒤): 뒤정강근 · 긴발가락굽힘근 · 동맥 · 정맥 · 신경 · 긴엄지굽힘근 ("Tom, Dick, And Very Nervous Harry")','오금근: 펴진 무릎의 잠금을 풂'],clinical:'뒤정강근 힘줄 기능부전은 성인 후천성 평발의 흔한 원인이다. 발목굴 증후군은 정강신경이 눌려 생긴다.'},
+fibularis:{ko:'종아리 가쪽칸 근육',desc:'긴·짧은종아리근. 힘줄이 가쪽복사 뒤를 돌아 발로 간다.',points:['N: 얕은종아리신경 (L5–S1)','A: 가쪽번짐, 발바닥굽힘 보조','긴종아리근 → 발바닥을 가로질러 안쪽쐐기뼈·1번 발허리뼈 바닥','짧은종아리근 → 5번 발허리뼈 거친면'],clinical:'발목 안쪽번짐 염좌 때 짧은종아리근이 당겨 5번 발허리뼈 바닥 견열골절이 생길 수 있다.'},
+tfl:{ko:'넙다리근막긴장근',desc:'엉덩이 앞가쪽의 작은 근육으로 엉덩정강띠를 통해 무릎까지 작용한다.',points:['O: 위앞엉덩뼈가시 부근 엉덩뼈능선','I: 엉덩정강띠 → 정강뼈 가쪽관절융기(Gerdy 결절)','N: 위볼기신경','A: 엉덩관절 벌림·안쪽돌림, 펴진 무릎 안정'],clinical:'엉덩정강띠 마찰증후군은 달리기 선수의 무릎 가쪽 통증 원인이다.'},
+pelvicfloor:{ko:'골반바닥 근육',desc:'항문올림근(두덩곧창자근·두덩꼬리근·엉덩꼬리근)과 꼬리근이 골반 아래를 받친다.',points:['N: 음부신경, S3–S4 앞가지','골반장기 지지, 배압 상승 시 수축','두덩곧창자근 고리가 항문곧창자각을 유지 → 배변 자제'],clinical:'분만 중 손상되면 요실금·대변실금, 골반장기탈출이 생길 수 있다.'},
+eyemus:{ko:'바깥눈근육',desc:'눈알을 움직이는 곧은근 4개와 빗근 2개, 그리고 위눈꺼풀올림근.',points:['가쪽곧은근 — 갓돌림신경(VI)','위빗근 — 도르래신경(IV)','나머지 — 눈돌림신경(III)  → "LR6 SO4"','위빗근: 눈을 안쪽돌림·아래로·벌림 / 아래빗근: 가쪽돌림·위로·벌림'],clinical:'눈돌림신경 마비: 눈이 아래가쪽으로 향하고 눈꺼풀처짐·동공확대. 도르래신경 마비: 계단을 내려갈 때 복시, 머리를 반대쪽으로 기울임.'},
+laryngeal:{ko:'후두근',desc:'성대의 긴장과 성문 열림을 조절하는 후두 내부 근육들.',points:['반지방패근만 위후두신경 바깥가지, 나머지는 모두 되돌이후두신경','뒤반지모뿔근: 유일하게 성대를 벌림','가쪽반지모뿔근·가로/빗모뿔근: 성대를 모음'],clinical:'양쪽 되돌이후두신경 손상 시 성대가 가운데로 모여 숨쉬기 어려워질 수 있다. 위후두신경 바깥가지 손상 시 고음 발성이 어렵다.'},
+infrahyoid:{ko:'목뿔아래근육 (띠근육)',desc:'복장목뿔근·복장방패근·방패목뿔근·어깨목뿔근. 목뿔뼈와 후두를 아래로 끌어내린다.',points:['N: 목신경고리 (C1–C3), 방패목뿔근은 C1 (혀밑신경을 따라감)'],clinical:'갑상샘 수술 시 정중선에서 이 근육들을 양옆으로 벌려 갑상샘에 접근한다.'},
+suboccipital:{ko:'뒤통수밑근육',desc:'큰·작은뒤머리곧은근, 위·아래머리빗근. 머리의 미세한 자세 조절을 맡는다.',points:['N: 뒤통수밑신경 (C1 뒤가지)','뒤통수밑삼각 안으로 척추동맥과 뒤통수밑신경이 지남'],clinical:'긴장성 두통에서 이 부위의 압통이 흔하다.'},
+handintr:{ko:'손 내재근 (벌레근·뼈사이근)',desc:'손허리손가락관절을 굽히면서 손가락사이관절을 펴는 정교한 운동을 만든다.',points:['바닥쪽뼈사이근 — 모음(PAD) / 등쪽뼈사이근 — 벌림(DAB)','N: 자신경 깊은가지 (가쪽 두 벌레근은 정중신경)'],clinical:'자신경 손상 시 4·5번 손가락의 갈퀴손 변형. Froment 징후(종이를 잡을 때 엄지 끝마디가 굽음).'},
+heartmus:{ko:'꼭지근',desc:'심실 안쪽 벽에서 솟은 근육 기둥. 힘줄끈으로 방실판 첨판을 붙잡아 수축기에 판막이 뒤집히지 않게 한다.',points:['왼심실: 앞가쪽·뒤안쪽 꼭지근 → 승모판','오른심실: 앞·뒤·중격 꼭지근 → 삼첨판'],clinical:'심근경색 뒤 꼭지근 파열 → 급성 승모판 역류. 혈액 공급이 한 갈래뿐인 뒤안쪽 꼭지근이 더 잘 다친다.'},
+
+willis:{ko:'대뇌동맥고리와 뇌동맥',desc:'뇌는 좌우 속목동맥(앞순환)과 척추동맥이 합쳐진 뇌바닥동맥(뒤순환)에서 혈액을 받는다. 이 둘이 교통동맥으로 이어져 대뇌동맥고리(Willis 고리)를 이룬다.',points:['앞대뇌동맥 — 이마엽·마루엽 안쪽면 (다리 운동·감각)','중간대뇌동맥 — 대뇌 가쪽면 대부분 (얼굴·팔, 언어)','뒤대뇌동맥 — 뒤통수엽, 관자엽 아래면','앞·뒤교통동맥이 고리를 완성'],clinical:'뇌동맥류는 앞교통동맥 부위에 가장 흔하고, 파열되면 거미막밑출혈(벼락두통)을 일으킨다.'},
+armart:{ko:'팔의 동맥',desc:'빗장밑동맥 → (1번 갈비뼈 가쪽모서리) 겨드랑동맥 → (큰원근 아래모서리) 위팔동맥 → (팔오금) 노동맥·자동맥으로 이어진다.',points:['겨드랑동맥은 작은가슴근 기준 3부분','깊은위팔동맥은 노신경과 함께 노신경고랑을 따라감','손바닥: 얕은손바닥동맥활(주로 자동맥) · 깊은손바닥동맥활(주로 노동맥)'],clinical:'혈압은 위팔동맥에서 잰다. 노동맥 채혈·도관 전에는 Allen 검사로 자동맥 곁순환을 확인한다.'},
+coronary:{ko:'심장동맥과 심장정맥',desc:'대동맥 뿌리에서 나온 좌우 심장동맥이 심장 근육을 공급하고, 정맥혈은 심장정맥들을 거쳐 심장정맥굴로 모여 오른심방에 들어간다.',points:['오른심장동맥 — 굴심방결절(약 60%), 방실결절(약 80%), 대개 뒤심실사이가지','왼심장동맥 — 앞심실사이가지(LAD) + 휘돌이가지','큰심장정맥은 LAD와, 중간심장정맥은 뒤심실사이가지와 나란히 주행'],clinical:'LAD 폐쇄는 앞벽 경색(V1–V4 ST 상승), 오른심장동맥 폐쇄는 아래벽 경색(II, III, aVF)과 서맥을 일으킨다.'},
+celiac:{ko:'복강동맥과 가지',desc:'T12 높이에서 배대동맥 앞으로 나오는 짧은 줄기. 앞창자(식도 아래 ~ 샘창자 둘째 부분)와 간·쓸개·이자 일부·지라를 공급한다.',points:['세 가지: 왼위동맥 · 지라동맥 · 온간동맥','온간동맥 → 고유간동맥 + 위샘창자동맥'],clinical:'샘창자 뒤벽 궤양이 위샘창자동맥을 침식하면 대량 출혈이 생긴다.'},
+sma:{ko:'위창자간막동맥',desc:'L1 높이에서 나와 중간창자(샘창자 둘째 부분 ~ 가로잘록창자 2/3)를 공급한다.',points:['가지: 아래이자샘창자, 빈창자·돌창자동맥, 돌잘록창자, 오른·중간잘록창자동맥','왼콩팥정맥과 샘창자 셋째 부분이 이 동맥과 대동맥 사이를 지남'],clinical:'급성 창자간막 허혈(색전이 흔함): 진찰 소견에 비해 극심한 복통. 사이 각도가 좁으면 위창자간막동맥 증후군, 호두까기 증후군.'},
+ima:{ko:'아래창자간막동맥',desc:'L3 높이에서 나와 뒤창자(가로잘록창자 왼쪽 1/3 ~ 곧창자 위쪽)를 공급한다.',points:['가지: 왼잘록창자동맥, 구불잘록창자동맥, 위곧창자동맥','잘록창자가장자리동맥으로 위창자간막동맥과 연결'],clinical:'왼잘록창자굽이(Griffiths점)는 두 동맥 공급의 경계라 허혈성 대장염이 잘 생긴다.'},
+renalv:{ko:'콩팥동맥·정맥',desc:'콩팥동맥은 L1–L2 높이에서 배대동맥 양옆으로 나온다. 콩팥정맥은 아래대정맥으로 들어간다.',points:['오른콩팥동맥은 아래대정맥 뒤를 지나 더 길다','왼콩팥정맥은 대동맥 앞을 지나 더 길고, 왼고환(난소)정맥·왼부신정맥을 받는다'],clinical:'왼고환정맥이 직각으로 왼콩팥정맥에 들어가 정계정맥류가 왼쪽에 흔하다. 콩팥동맥 협착은 이차성 고혈압의 원인.'},
+pulmonaryv:{ko:'허파동맥·허파정맥',desc:'허파동맥줄기는 오른심실에서 정맥혈을 허파로 보내고, 허파정맥(보통 4개)은 산소가 풍부한 혈액을 왼심방으로 돌려보낸다.',points:['허파동맥줄기는 대동맥활 아래에서 좌우로 갈라짐','동맥관인대가 허파동맥과 대동맥활을 연결'],clinical:'허파색전증은 허파동맥이 막히는 질환. 심방세동 시술은 허파정맥 입구를 전기적으로 격리한다.'},
+portal:{ko:'간문맥',desc:'위창자간막정맥과 지라정맥이 이자목 뒤에서 합쳐져 생기며, 소화관의 영양분이 담긴 혈액을 간으로 보낸다(간 혈류의 약 75%).',points:['문맥-전신 문합: 식도 아래 · 곧창자 · 배꼽 주위 · 배막뒤'],clinical:'문맥고혈압 시 문합이 확장되어 식도정맥류, 치핵, 배꼽 주위 정맥 확장(caput medusae)이 생긴다.'},
+azygos:{ko:'홀정맥계통',desc:'가슴벽과 등의 정맥혈을 모아 T4 높이에서 위대정맥으로 들어가는 정맥. 왼쪽은 반홀정맥·덧반홀정맥이 담당한다.',points:['위대정맥과 아래대정맥을 잇는 곁순환 경로'],clinical:'아래대정맥이 막히면 홀정맥계통을 통해 혈액이 심장으로 돌아올 수 있다.'},
+ijv:{ko:'속목정맥',desc:'목정맥구멍에서 시작해 목동맥집 안에서 온목동맥 가쪽을 따라 내려가 빗장밑정맥과 합쳐 팔머리정맥이 된다.',points:['뇌·얼굴·목 정맥혈의 주된 배출로'],clinical:'중심정맥관 삽입의 대표 부위(오른쪽이 위대정맥까지 곧아 선호). 목정맥 팽대는 우심부전 평가에 쓰인다.'},
+saphenous:{ko:'두렁정맥',desc:'다리의 얕은정맥. 큰두렁정맥은 안쪽복사 앞에서 다리 안쪽을 따라 올라가 넙다리정맥으로, 작은두렁정맥은 가쪽복사 뒤를 지나 오금정맥으로 들어간다.',points:['큰두렁정맥은 인체에서 가장 긴 정맥','큰두렁정맥 → 두렁정맥구멍(샅고랑인대 아래)'],clinical:'관상동맥우회술(CABG)의 이식편으로 쓰인다. 판막 기능부전 시 하지정맥류가 생긴다.'},
+armveins:{ko:'팔의 얕은정맥',desc:'노쪽피부정맥은 팔 가쪽을, 자쪽피부정맥은 안쪽을 따라 올라가며 팔오금에서 팔오금중간정맥으로 연결된다.',points:['노쪽피부정맥 → 어깨세모가슴근고랑 → 겨드랑정맥','자쪽피부정맥 → 위팔정맥과 합쳐 겨드랑정맥'],clinical:'팔오금중간정맥은 채혈·정맥주사의 가장 흔한 부위다.'},
+intthoracic:{ko:'속가슴동맥',desc:'빗장밑동맥에서 나와 복장뼈 가쪽모서리 약 1cm 바깥을 따라 내려가 근육가로막동맥과 위배벽동맥으로 갈라진다.',points:['앞갈비사이가지를 냄','위배벽동맥은 아래배벽동맥과 이어짐'],clinical:'관상동맥우회술에서 왼속가슴동맥(LIMA)을 앞심실사이가지(LAD)에 잇는 것이 표준이다(장기 개통률이 가장 높음).'},
+});
+
 for(const [r,n] of [['C',7],['T',12],['L',5]]) for(let i=1;i<=n;i++){ const o=VOVR[r+i]||{}; INFO[r+i]={...VREG[r],...o}; }
 
 /* ---------------- 렌더러 ---------------- */
@@ -476,6 +540,9 @@ function colorOf(p){
     if(en.startsWith('taenia')) return 0xa86d48; return m[k]??0xd09070; }
   if(p.sys==='urinary') return {kidney:0xa3473a,ureter:0xd8b26a,bladder:0xd9b46e,urethra:0xd8b26a}[k]??0xc09050;
   if(p.sys==='endocrine') return 0xe3a33f;
+  if(p.sys==='muscular') return /tendon|ligament|membrane|tract|linea/i.test(p.en)?0xe6dfcc:0xb5473f;
+  if(p.sys==='arterial') return 0xd8343a;
+  if(p.sys==='venous') return 0x3d66c8;
   return 0xcccccc;
 }
 
@@ -492,32 +559,51 @@ async function fetchGz(url,onBytes){
   const ds=blob.stream().pipeThrough(new DecompressionStream('gzip'));
   return await new Response(ds).arrayBuffer();
 }
+let MAN=null; const loaded={}, loading={};
+function buildMeshes(p,b){
+  const [lx,ly,lz]=MAN.lo, [sx,sy,sz]=MAN.sc;
+  const q=new Uint16Array(b,p.po,p.vc*3); const pos=new Float32Array(p.vc*3);
+  for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*3]*sx; pos[i*3+1]=ly+q[i*3+1]*sy; pos[i*3+2]=lz+q[i*3+2]*sz; }
+  const idx=p.i32?new Uint32Array(b,p.io,p.ic):new Uint16Array(b,p.io,p.ic);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx.slice(),1));
+  g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
+  if(p.sys==='skin'){ const m=new THREE.Mesh(g,skinMat); m.renderOrder=10; skinG.add(m); return; }
+  const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
+  if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
+  const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
+  m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId);
+  groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m);
+}
+async function loadFiles(files,onBytes){
+  const bufs={}; await Promise.all(files.map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); })); return bufs;
+}
 async function load(){
-  const man=await (await fetch('models/manifest.json')).json();
-  const total=Object.values(man.files).reduce((a,b)=>a+b,0); let got=0;
-  const onBytes=n=>{ got+=n; ldFill.style.width=(got/total*100).toFixed(1)+'%'; ldText.textContent=`3D 모델 불러오는 중… ${(got/1e6).toFixed(1)} / ${(total/1e6).toFixed(1)} MB`; };
-  const bufs={}; await Promise.all(Object.keys(man.files).map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); }));
+  MAN=await (await fetch('models/manifest.json')).json();
+  for(const p of MAN.parts){ if(p.sys==='skin') continue; parts[p.id]={...p,info:INFO[p.key]||null,meshes:[],grp:p.grp||'기타'}; }
+  const first=Object.keys(MAN.files).filter(f=>!SYSTEMS[f]?.lazy);
+  const total=first.reduce((a,f)=>a+MAN.files[f],0); let got=0;
+  const bufs=await loadFiles(first,n=>{ got+=n; ldFill.style.width=(got/total*100).toFixed(1)+'%'; ldText.textContent=`3D 모델 불러오는 중… ${(got/1e6).toFixed(1)} / ${(total/1e6).toFixed(1)} MB`; });
   ldText.textContent='모델 조립 중…';
-  const [lx,ly,lz]=man.lo, [sx,sy,sz]=man.sc;
-  for(const p of man.parts){
-    const b=bufs[p.f]; const q=new Uint16Array(b,p.po,p.vc*3); const pos=new Float32Array(p.vc*3);
-    for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*3]*sx; pos[i*3+1]=ly+q[i*3+1]*sy; pos[i*3+2]=lz+q[i*3+2]*sz; }
-    const idx = p.i32 ? new Uint32Array(b,p.io,p.ic) : new Uint16Array(b,p.io,p.ic);
-    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx.slice(),1));
-    g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
-    if(p.sys==='skin'){ const m=new THREE.Mesh(g,skinMat); m.renderOrder=10; skinG.add(m); continue; }
-    const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
-    if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
-    const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
-    groups[p.sys].add(m); pickables.push(m);
-    const info=INFO[p.key]||null;
-    parts[p.id]={...p,info,meshes:[m],grp:p.grp||'기타'};
-  }
+  for(const p of MAN.parts) if(bufs[p.f]) buildMeshes(p,bufs[p.f]);
+  first.forEach(f=>loaded[f]=true);
   const L=document.getElementById('loading'); L.style.opacity=0; setTimeout(()=>L.remove(),400);
+}
+const chipL=document.createElement('div'); chipL.style.cssText='position:absolute;left:50%;bottom:44px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:12.5px;z-index:6;display:none';
+document.getElementById('stage').appendChild(chipL);
+async function ensureSys(s){
+  if(loaded[s]) return; if(loading[s]) return loading[s];
+  loading[s]=(async()=>{
+    const total=MAN.files[s]; let got=0; chipL.style.display='block';
+    const bufs=await loadFiles([s],n=>{ got+=n; chipL.textContent=`${SYSTEMS[s].ko} 불러오는 중… ${Math.round(got/total*100)}%`; });
+    chipL.textContent=`${SYSTEMS[s].ko} 조립 중…`; await new Promise(r=>setTimeout(r,30));
+    for(const p of MAN.parts) if(p.f===s) buildMeshes(p,bufs[s]);
+    loaded[s]=true; chipL.style.display='none'; applyOpacity(); const c=document.querySelector(`details[data-sys=${s}] .cnt`); if(c) c.textContent=c.textContent.replace('⤓ ','');
+  })();
+  return loading[s];
 }
 
 /* ---------------- 상태 ---------------- */
-const sysOn={}; for(const s in SYSTEMS) sysOn[s]=true;
+const sysOn={}; for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
 let selId=null, hoverId=null, isoId=null, xray=false;
 const quiz={on:false,type:'name',target:null,answered:false,score:0,total:0};
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
@@ -547,7 +633,7 @@ function paint(){
 let tween=null;
 function flyTo(t,p,dur=750){ tween={t0:performance.now(),dur,fT:controls.target.clone(),tT:t.clone(),fP:camera.position.clone(),tP:p.clone()}; }
 function focusPart(p){
-  const box=new THREE.Box3(); p.meshes.forEach(m=>box.expandByObject(m));
+  if(!p.meshes.length) return; const box=new THREE.Box3(); p.meshes.forEach(m=>box.expandByObject(m));
   const c=box.getCenter(V()), sz=box.getSize(V()).length();
   const dir=camera.position.clone().sub(controls.target).normalize();
   flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(0.28,sz*2.2))));
@@ -586,13 +672,13 @@ function buildList(){
   list.innerHTML='';
   for(const s in SYSTEMS){
     const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>a.ko.localeCompare(b.ko,'ko'));
-    const d=document.createElement('details'); d.className='sys';
-    d.innerHTML=`<summary><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
-      <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${ps.length}</span><span class="chev">▶</span></summary>`;
-    d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; updateVisibility(); };
+    const d=document.createElement('details'); d.className='sys'; d.dataset.sys=s;
+    d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[s]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
+      <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${S.lazy&&!loaded[s]?'⤓ ':''}${ps.length}</span><span class="chev">▶</span></summary>`;
+    d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; if(sysOn[s]) ensureSys(s); updateVisibility(); };
     const mk=p=>{ const b=document.createElement('button'); b.className='item'; b.dataset.id=p.id; b.dataset.q=(p.ko+' '+(p.old||'')+' '+p.en).toLowerCase();
       b.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`;
-      b.onclick=()=>{ if(!sysOn[p.sys]){ sysOn[p.sys]=true; d.querySelector('input').checked=true; updateVisibility(); } select(p.id,{focus:true}); side.classList.remove('open'); }; return b; };
+      b.onclick=async()=>{ if(!sysOn[p.sys]){ sysOn[p.sys]=true; d.querySelector('input').checked=true; updateVisibility(); } await ensureSys(p.sys); select(p.id,{focus:true}); side.classList.remove('open'); }; return b; };
     const gm={}; ps.forEach(p=>(gm[p.grp]||=[]).push(p));
     const keys=Object.keys(gm).sort((a,b)=>(GROUP_ORDER.indexOf(a)+1||99)-(GROUP_ORDER.indexOf(b)+1||99));
     if(keys.length===1) gm[keys[0]].forEach(p=>d.appendChild(mk(p)));
@@ -642,7 +728,7 @@ addEventListener('keydown',e=>{ if(e.key==='Escape') select(null); });
 
 /* ---------------- 퀴즈 ---------------- */
 const qEl=document.getElementById('quiz'), qprompt=document.getElementById('qprompt'), qopts=document.getElementById('qopts'), qfb=document.getElementById('qfb');
-const pool=()=>Object.values(parts).filter(p=>p.info&&sysOn[p.sys]&&p.r>0.012&&!['tooth','disk','costal'].includes(p.key));
+const pool=()=>Object.values(parts).filter(p=>p.info&&p.meshes.length&&sysOn[p.sys]&&p.r>0.012&&!['tooth','disk','costal'].includes(p.key));
 const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 function setMode(m){
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
