@@ -244,6 +244,13 @@ def classify(p):
         if re.search(r'ventricle|atrium', n): s = None
         r = vessel_ko(b2)
         return dict(sys=sysn, ko=(sideko(s) + r) if r else None, old='', key=vessel_key(b2), grp=None)
+    if sysn == 'reproductive':
+        RP = {'testis': ('고환', '고환', 'testis'), 'epididymis': ('부고환', '부고환', 'epididymis'), 'deferent duct': ('정관', '정관', 'ductus'),
+              'seminal vesicle': ('정낭', '정낭', 'seminalv'), 'prostate': ('전립샘', '전립선', 'prostate'),
+              'corpus cavernosum of penis': ('음경해면체', '음경해면체', 'penis'), 'corpus spongiosum of penis': ('요도해면체', '요도해면체', 'penis'),
+              'glans penis': ('음경귀두', '귀두', 'penis')}
+        if b2 in RP: ko, old, key = RP[b2]; return dict(sys='reproductive', ko=sideko(s) + ko, old=old, key=key, grp=None)
+        return None
     if sysn == 'integumentary' and b == 'skin': return dict(sys='skin', ko='피부', old='', key=None, grp=None)
     return None
 

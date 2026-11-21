@@ -57,6 +57,17 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
 .seg button.on{background:rgba(34,211,238,.18);color:#fff}
 .seg button:hover{color:#fff}
 #menuBtn{display:none}
+#app.collapsed #side{display:none}
+#app.collapsed #menuBtn{display:block}
+#sideClose{background:none;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-size:12px;padding:3px 8px;float:right;margin-top:-2px}
+#sideClose:hover{color:#fff;border-color:var(--acc)}
+#sexNote{position:absolute;left:50%;transform:translateX(-50%);bottom:40px;background:var(--panel);border:1px solid rgba(251,191,36,.4);border-radius:10px;padding:7px 12px;font-size:12px;color:#e6d3a0;z-index:4;max-width:min(560px,80%);text-align:center;display:none}
+@media (min-width:821px){
+  #stage.docked #c{width:calc(100% - 390px)}
+  #stage.docked #quiz{top:0;right:0;bottom:0;width:390px;max-height:none;border-radius:0;border:0;border-left:1px solid var(--line)}
+  #stage.docked #viewBar{right:404px}
+  #stage.docked #sexNote{left:calc((100% - 390px)/2)}
+}
 #tip{position:absolute;pointer-events:none;background:rgba(5,8,15,.92);border:1px solid var(--line);padding:5px 9px;border-radius:7px;font-size:12.5px;white-space:nowrap;opacity:0;transition:opacity .12s;z-index:6}
 #tip small{color:var(--muted);margin-left:5px}
 #hint{position:absolute;left:14px;bottom:12px;font-size:11.5px;color:var(--muted);pointer-events:none}
@@ -109,6 +120,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
 <div id="app">
   <aside id="side">
     <header>
+      <button id="sideClose" title="목록 접기">⟨ 접기</button>
       <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
       <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>신경·근육·혈관은 아래 목록에서 켜세요</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
@@ -121,7 +133,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
     <div id="list"></div>
-    <footer>3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
+    <footer id="foot">3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
   </aside>
   <main id="stage">
     <canvas id="c"></canvas>
@@ -129,6 +141,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
     <div class="bar" id="modeBar">
       <div class="seg" id="menuBtn"><button id="menuToggle">☰ 목록</button></div>
       <div class="seg"><button data-mode="explore" class="on">탐색</button><button data-mode="quiz">퀴즈</button></div>
+      <div class="seg"><button data-sex="male" class="on">남성</button><button data-sex="female">여성</button></div>
     </div>
     <div class="bar" id="viewBar">
       <div class="seg">
@@ -137,6 +150,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
     </div>
     <div id="isoChip"><span id="isoName"></span><button id="isoOff">전체 보기</button></div>
     <div id="tip"></div>
+    <div id="sexNote">여성 모델은 HuBMAP 기준 장기 모델이에요. 골반·무릎 부위 뼈, 주요 장기, 생식기관, 유방, 혈관, 척수가 있고 머리뼈·갈비뼈·팔뼈·근육·말초신경은 없어요.</div>
     <div id="hint">드래그: 회전 · 휠/핀치: 확대 · 우클릭(두 손가락) 드래그: 이동 · Esc: 선택 해제</div>
     <section id="info" class="panel hidden"></section>
     <section id="quiz" class="panel hidden">
@@ -164,12 +178,13 @@ const SYSTEMS = {
   digestive:  {ko:'소화계', dot:'#d08a55'},
   urinary:    {ko:'비뇨계', dot:'#a777d6'},
   endocrine:  {ko:'내분비계', dot:'#4fc3a1'},
+  reproductive:{ko:'생식계', dot:'#e48ab8'},
   nerves:     {ko:'척수·말초신경·뇌신경', dot:'#ffd84d', lazy:true},
   muscular:   {ko:'근육계', dot:'#c0504d', lazy:true},
   arterial:   {ko:'동맥', dot:'#ff4d4d', lazy:true},
   venous:     {ko:'정맥', dot:'#4d7cff', lazy:true},
 };
-const GROUP_ORDER=['심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
+const GROUP_ORDER=['자궁','난소·자궁관','유방','콩팥','방광','허파구역','기관지','후두','간·이자','무릎','척수','심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
 
 const INFO = {
 skull:{sys:'skeletal',ko:'머리뼈',old:'두개골',en:'Skull (Cranium)',
@@ -530,6 +545,24 @@ cn11:{ko:'더부신경 (XI)',desc:'목정맥구멍으로 나와 목빗근을 뚫
 cn12:{ko:'혀밑신경 (XII)',desc:'숨뇌 앞면에서 나와 혀밑신경관을 지나 목동맥 바깥쪽을 둥글게 돌아 목뿔뼈 위로 혀에 들어간다.',points:['지배: 혀의 모든 근육(입천장혀근 제외)'],clinical:'마비 시 혀를 내밀면 다친 쪽으로 치우친다.'},
 });
 
+
+/* 생식계 · 여성 모델 설명 */
+Object.assign(INFO,{
+testis:{ko:'고환',desc:'음낭 안에 있는 한 쌍의 타원형 생식샘. 정자를 만들고(세정관), 테스토스테론을 분비한다(Leydig 세포).',points:['백색막에 싸여 있고 안쪽은 고환소엽·세정관으로 나뉨','동맥: 고환동맥(배대동맥, L2 높이)','정맥: 덩굴정맥얼기 → 고환정맥 (오른쪽은 아래대정맥, 왼쪽은 왼콩팥정맥)','림프: 대동맥 주위 림프절 (샅고랑 림프절 아님)'],clinical:'고환 염전은 갑작스러운 음낭 통증의 응급 원인(6시간 이내 수술). 고환암은 대동맥 주위 림프절로 전이한다. 정계정맥류는 왼쪽에 흔하다.'},
+epididymis:{ko:'부고환',desc:'고환 뒤쪽에 붙은 C자 모양 관(머리·몸통·꼬리). 정자가 이곳을 지나며 성숙하고 저장된다.',points:['꼬리에서 정관으로 이어짐'],clinical:'부고환염은 고환 염전과 감별해야 한다(Prehn 징후: 음낭을 들어 올리면 통증이 줄어듦 — 신뢰도는 낮음).'},
+ductus:{ko:'정관',desc:'부고환 꼬리에서 시작해 정삭 안을 올라가 샅고랑관을 지나 골반 안으로 들어간 뒤, 방광 뒤에서 정낭관과 합쳐 사정관이 된다.',points:['정삭 안에서 단단한 끈처럼 만져짐','골반 안에서 요관 위를 건너감 (요관이 아래 — "water under the bridge")','끝부분이 넓어져 정관팽대가 됨'],clinical:'정관절제술(정관수술)은 음낭 부위에서 정관을 자르고 묶는 남성 피임법이다.'},
+seminalv:{ko:'정낭',desc:'방광 바닥 뒤쪽에 있는 한 쌍의 꼬불꼬불한 샘. 정액 부피의 약 60–70%를 만든다.',points:['과당이 풍부한 알칼리성 분비물 — 정자의 에너지원','배설관이 정관과 합쳐 사정관이 됨'],clinical:'직장수지검사 때 전립샘 위쪽에서 정상적으로는 거의 만져지지 않는다.'},
+prostate:{ko:'전립샘',desc:'방광 바로 아래에서 요도 첫 부분을 둘러싸는 밤톨 모양의 샘. 사정관이 이 안을 지나 요도로 열린다.',points:['구역: 말초구역(약 70%) · 중심구역 · 이행구역','정액의 약 20–30%를 분비 (PSA 포함)','뒤쪽 면이 곧창자와 맞닿음'],clinical:'전립샘비대증은 이행구역에서 생겨 요도를 눌러 배뇨곤란을 일으킨다. 전립샘암은 주로 말초구역에 생겨 직장수지검사로 만져질 수 있다.'},
+penis:{ko:'음경',desc:'두 개의 음경해면체(등쪽)와 요도가 지나는 하나의 요도해면체(배쪽)로 이루어지며, 요도해면체 끝이 커져 음경귀두가 된다.',points:['발기: 부교감(골반내장신경 S2–S4) — "Point"','사정: 교감 — "Shoot"','감각: 음경등신경(음부신경 가지)'],clinical:'발기 지속증은 비뇨기과 응급이다. 음경해면체 백색막이 찢어지면 음경 골절이 생긴다.'},
+uterus:{ko:'자궁',desc:'방광과 곧창자 사이에 있는 배 모양의 근육성 기관. 바닥·몸통·목으로 나뉘고, 대개 앞으로 기울고(전경) 앞으로 굽어(전굴) 있다.',points:['벽: 자궁내막 · 자궁근층 · 자궁바깥막','동맥: 자궁동맥(속엉덩동맥 가지) — 자궁목 옆에서 요관 위를 지나감','지지: 기본인대(가로자궁목인대), 자궁엉치인대, 원인대'],clinical:'자궁절제술 중 자궁동맥을 묶을 때 바로 아래 요관을 다치지 않도록 주의한다. 자궁근종은 가장 흔한 양성 종양이다.'},
+cervix:{ko:'자궁목',desc:'자궁의 아래쪽 좁은 부분으로 질 안으로 튀어나와 있다. 속자궁구멍과 바깥자궁구멍 사이가 자궁목관이다.',points:['편평-원주 상피 이행대(변형대)가 있음'],clinical:'자궁경부암은 이행대에서 생기며, HPV 감염과 관련 있다. 자궁경부 세포검사(Pap smear)로 선별한다.'},
+ovary:{ko:'난소',desc:'골반 옆벽의 난소오목에 놓인 한 쌍의 생식샘. 난자를 만들고 에스트로겐·프로게스테론을 분비한다.',points:['걸이인대(난소동맥·정맥 포함)와 고유난소인대로 매달림','동맥: 난소동맥(배대동맥, L2) + 자궁동맥 난소가지','정맥: 오른쪽은 아래대정맥, 왼쪽은 왼콩팥정맥'],clinical:'난소 염전 시 극심한 아래배 통증. 난소 질환 통증이 폐쇄신경을 자극해 넙다리 안쪽으로 연관될 수 있다. 난소암은 대동맥 주위 림프절로 전이한다.'},
+uterinetube:{ko:'자궁관 (난관)',desc:'자궁뿔에서 난소 쪽으로 뻗은 약 10cm의 관. 안쪽부터 자궁부분 · 잘록 · 팽대 · 깔때기(술)로 이어진다.',points:['수정은 대개 팽대에서 일어남','술(fimbriae)이 배란된 난자를 받아들임'],clinical:'자궁외임신은 대부분 자궁관(특히 팽대)에서 생긴다. 골반염증으로 자궁관이 좁아지면 불임·자궁외임신 위험이 커진다.'},
+breast:{ko:'유방',desc:'큰가슴근 근막 위 피하에 있는 변형 땀샘. 15–20개의 젖샘엽이 각각 젖샘관으로 젖꼭지에 열린다.',points:['대략 2–6번 갈비뼈 높이, 위가쪽으로 겨드랑꼬리(Spence) 연장','유방걸이인대(Cooper)가 피부와 근막을 연결','림프: 약 75%가 겨드랑 림프절로'],clinical:'유방암은 위가쪽 사분역에 가장 흔하다. 암이 Cooper 인대를 당기면 피부 함몰, 림프관이 막히면 귤껍질(peau d\'orange) 피부가 나타난다.'},
+meniscus:{ko:'반달연골',desc:'넙다리뼈와 정강뼈 관절면 사이의 C자 모양 섬유연골 두 개(안쪽·가쪽). 충격을 흡수하고 관절의 적합성을 높인다.',points:['안쪽반달연골은 안쪽곁인대에 붙어 덜 움직임 → 더 잘 찢어짐','가쪽반달연골은 더 둥글고 잘 움직임'],clinical:'"불행 3징(unhappy triad)": 앞십자인대 + 안쪽곁인대 + 반달연골 손상 (전통적으로 안쪽반달연골, 실제로는 가쪽이 더 흔하다는 보고도 있음).'},
+uterineart:{ko:'자궁동맥·정맥',desc:'자궁동맥은 속엉덩동맥 앞갈래에서 나와 기본인대 안을 지나 자궁목 옆에서 요관 위를 건너 자궁 옆을 따라 올라간다.',points:['"water under the bridge" — 요관(물)이 자궁동맥(다리) 아래로 지나감','난소동맥과 문합'],clinical:'자궁절제술이나 산후출혈 시 자궁동맥 결찰·색전술을 한다.'},
+});
+
 for(const [r,n] of [['C',7],['T',12],['L',5]]) for(let i=1;i<=n;i++){ const o=VOVR[r+i]||{}; INFO[r+i]={...VREG[r],...o}; }
 
 /* ---------------- 렌더러 ---------------- */
@@ -583,6 +616,13 @@ function colorOf(p){
     if(en.startsWith('taenia')) return 0xa86d48; return m[k]??0xd09070; }
   if(p.sys==='urinary') return {kidney:0xa3473a,ureter:0xd8b26a,bladder:0xd9b46e,urethra:0xd8b26a}[k]??0xc09050;
   if(p.sys==='endocrine') return 0xe3a33f;
+  if(p.sys==='reproductive'){
+    const m={testis:0xe9c9a8,epididymis:0xd7a98a,ductus:0xd8c08a,seminalv:0xd9b98a,prostate:0xc98a7a,penis:0xd99a8a,uterus:0xd98a8a,cervix:0xe3a3a3,ovary:0xf0d0c0,uterinetube:0xe8a0a0};
+    if(k==='breast') return /fat/i.test(p.en)?0xf0d79a:/lobe/i.test(p.en)?0xf3b8b0:/duct|sinus/i.test(p.en)?0xe08a8a:/nipple|areola/i.test(p.en)?0xc8826e:0xe8e2d0;
+    return m[k]??0xd99a9a; }
+  if(p.sys==='urinary'&&/pyramid/i.test(p.en)) return 0x8a3a30;
+  if(p.sys==='urinary'&&/calyx|pelvis|papilla/i.test(p.en)) return 0xd8b26a;
+  if(k==='meniscus') return 0xb9d0da;
   if(p.sys==='nerves') return k==='spinalcord'||k==='cauda'?0xf6e7b0:k==='sympathetic'?0xd9b85a:k==='vagus'||k==='rln'?0xf0c040:0xf5d34f;
   if(p.sys==='muscular') return /tendon|ligament|membrane|tract|linea/i.test(p.en)?0xe6dfcc:0xb5473f;
   if(p.sys==='arterial') return 0xd8343a;
@@ -594,7 +634,7 @@ function colorOf(p){
 const parts={}, pickables=[], groups={}, skinG=new THREE.Group(); scene.add(skinG);
 for(const s in SYSTEMS){ groups[s]=new THREE.Group(); scene.add(groups[s]); }
 const skinMat=new THREE.MeshStandardMaterial({color:0xf1c6a8,roughness:.8,transparent:true,opacity:.08,depthWrite:false,side:THREE.DoubleSide});
-const ldFill=document.getElementById('ldFill'), ldText=document.getElementById('ldText');
+let ldFill=document.getElementById('ldFill'), ldText=document.getElementById('ldText');
 async function fetchGz(url,onBytes){
   const res=await fetch(url); if(!res.ok) throw new Error(url+' '+res.status);
   const reader=res.body.getReader(); const bufs=[]; let n=0;
@@ -603,7 +643,8 @@ async function fetchGz(url,onBytes){
   const ds=blob.stream().pipeThrough(new DecompressionStream('gzip'));
   return await new Response(ds).arrayBuffer();
 }
-let MAN=null; const loaded={}, loading={};
+let MAN=null, SEX='male'; let loaded={}, loading={};
+const fileOf=s=>(SEX==='female'?'f_':'')+s, sysOfFile=f=>f.replace(/^f_/,'');
 function buildMeshes(p,b){
   const [lx,ly,lz]=MAN.lo, [sx,sy,sz]=MAN.sc;
   const q=new Uint16Array(b,p.po,p.vc*3); const pos=new Float32Array(p.vc*3);
@@ -614,6 +655,8 @@ function buildMeshes(p,b){
   if(p.sys==='skin'){ const m=new THREE.Mesh(g,skinMat); m.renderOrder=10; skinG.add(m); return; }
   const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
   if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
+  const ghost=/^Female .*\bfat$|^Female (left |right )?kidney$/i.test(p.en)?0.3:/^Female .*cortex$/i.test(p.en)?0.5:null;
+  if(ghost!=null){ mat.transparent=true; mat.opacity=ghost; mat.depthWrite=false; }
   const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
   m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId); if(typeof clipOn!=='undefined'&&clipOn) mat.side=THREE.DoubleSide;
   groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m);
@@ -622,25 +665,52 @@ async function loadFiles(files,onBytes){
   const bufs={}; await Promise.all(files.map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); })); return bufs;
 }
 async function load(){
-  MAN=await (await fetch('models/manifest.json')).json();
+  MAN=await (await fetch(SEX==='female'?'models/manifest_f.json':'models/manifest.json')).json();
   for(const p of MAN.parts){ if(p.sys==='skin') continue; parts[p.id]={...p,info:INFO[p.key]||null,meshes:[],grp:p.grp||'기타'}; }
-  const first=Object.keys(MAN.files).filter(f=>!SYSTEMS[f]?.lazy);
+  const first=Object.keys(MAN.files).filter(f=>!SYSTEMS[sysOfFile(f)]?.lazy);
   const total=first.reduce((a,f)=>a+MAN.files[f],0); let got=0;
   const bufs=await loadFiles(first,n=>{ got+=n; ldFill.style.width=(got/total*100).toFixed(1)+'%'; ldText.textContent=`3D 모델 불러오는 중… ${(got/1e6).toFixed(1)} / ${(total/1e6).toFixed(1)} MB`; });
   ldText.textContent='모델 조립 중…';
   for(const p of MAN.parts) if(bufs[p.f]) buildMeshes(p,bufs[p.f]);
-  first.forEach(f=>loaded[f]=true);
+  first.forEach(f=>loaded[sysOfFile(f)]=true);
   const L=document.getElementById('loading'); L.style.opacity=0; setTimeout(()=>L.remove(),400);
 }
+let GEN=0;
+function showLoading(){
+  if(document.getElementById('loading')) return;
+  const L=document.createElement('div'); L.id='loading';
+  L.innerHTML='<div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub"></small></div>';
+  document.getElementById('stage').appendChild(L); ldFill=document.getElementById('ldFill'); ldText=document.getElementById('ldText');
+}
+async function switchSex(sex,{keepHash=false}={}){
+  if(sex===SEX&&MAN) return; GEN++;
+  if(quiz.on) setMode('explore');
+  select(null); isoId=null; hoverId=null;
+  for(const s in groups){ const g=groups[s]; while(g.children.length){ const m=g.children.pop(); m.geometry.dispose(); m.material.dispose(); } }
+  while(skinG.children.length){ skinG.children.pop().geometry.dispose(); }
+  pickables.length=0; for(const k in parts) delete parts[k]; loaded={}; loading={}; chipL.style.display='none';
+  for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
+  SEX=sex; document.querySelectorAll('[data-sex]').forEach(b=>b.classList.toggle('on',b.dataset.sex===sex));
+  document.getElementById('sexNote').style.display=sex==='female'?'block':'none';
+  document.getElementById('foot').innerHTML = sex==='female'
+    ? '3D 모델: <a href="https://humanatlas.io/3d-reference-library" target="_blank" rel="noopener">HuBMAP HRA 3D Reference Object Library</a> (Visible Human Female), CC BY 4.0 — 웹용으로 경량화·재구성함. 여성 1인 기반 기준 모델입니다. 교육용이며 진단용이 아닙니다.'
+    : '3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.';
+  if(!keepHash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+  showLoading(); await load(); buildList(); updateVisibility(); applyOpacity(); paint(); updateClip(); flyTo(HOME.t,HOME.p);
+}
+document.querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>switchSex(b.dataset.sex));
+
 const chipL=document.createElement('div'); chipL.style.cssText='position:absolute;left:50%;bottom:44px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:12.5px;z-index:6;display:none';
 document.getElementById('stage').appendChild(chipL);
 async function ensureSys(s){
-  if(loaded[s]) return; if(loading[s]) return loading[s];
+  if(loaded[s]||!MAN.files[fileOf(s)]) return; if(loading[s]) return loading[s];
+  const gen=GEN;
   loading[s]=(async()=>{
-    const total=MAN.files[s]; let got=0; chipL.style.display='block';
-    const bufs=await loadFiles([s],n=>{ got+=n; chipL.textContent=`${SYSTEMS[s].ko} 불러오는 중… ${Math.round(got/total*100)}%`; });
+    const fn=fileOf(s), total=MAN.files[fn]; let got=0; chipL.style.display='block';
+    const bufs=await loadFiles([fn],n=>{ got+=n; chipL.textContent=`${SYSTEMS[s].ko} 불러오는 중… ${Math.round(got/total*100)}%`; });
+    if(gen!==GEN){ chipL.style.display='none'; return; }
     chipL.textContent=`${SYSTEMS[s].ko} 조립 중…`; await new Promise(r=>setTimeout(r,30));
-    for(const p of MAN.parts) if(p.f===s) buildMeshes(p,bufs[s]);
+    for(const p of MAN.parts) if(p.f===fn) buildMeshes(p,bufs[fn]);
     loaded[s]=true; chipL.style.display='none'; applyOpacity(); const c=document.querySelector(`details[data-sys=${s}] .cnt`); if(c) c.textContent=c.textContent.replace('⤓ ','');
   })();
   return loading[s];
@@ -676,11 +746,11 @@ function paint(){
 /* ---------------- 카메라 ---------------- */
 let tween=null;
 function flyTo(t,p,dur=750){ tween={t0:performance.now(),dur,fT:controls.target.clone(),tT:t.clone(),fP:camera.position.clone(),tP:p.clone()}; }
-function focusPart(p){
+function focusPart(p,k=2.2){
   if(!p.meshes.length) return; const box=new THREE.Box3(); p.meshes.forEach(m=>box.expandByObject(m));
   const c=box.getCenter(V()), sz=box.getSize(V()).length();
   const dir=camera.position.clone().sub(controls.target).normalize();
-  flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(0.28,sz*2.2))));
+  flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(k>2.2?0.55:0.28,sz*k))));
 }
 const VIEWS={front:[0,1.05,3.6],back:[0,1.05,-3.6],right:[-3.6,1.05,0],left:[3.6,1.05,0]};
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.dataset.view; flyTo(HOME.t, v==='reset'?HOME.p:V(...VIEWS[v])); });
@@ -719,8 +789,9 @@ function buildList(){
   list.innerHTML='';
   for(const s in SYSTEMS){
     const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>a.ko.localeCompare(b.ko,'ko'));
+    if(!ps.length) continue;
     const d=document.createElement('details'); d.className='sys'; d.dataset.sys=s;
-    d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[s]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
+    d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[fileOf(s)]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
       <span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}<span class="cnt">${S.lazy&&!loaded[s]?'⤓ ':''}${ps.length}</span><button class="opbtn" data-op="${s}" title="이 계통 투명도">100%</button><span class="chev">▶</span></summary>`;
     d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; if(sysOn[s]) ensureSys(s); updateVisibility(); };
     d.querySelector('.opbtn').onclick=e=>{ e.preventDefault(); e.stopPropagation(); const seq=[1,0.45,0.15]; sysOp[s]=seq[(seq.indexOf(sysOp[s]??1)+1)%3]; e.target.textContent=Math.round(sysOp[s]*100)+'%'; applyOpacity(); };
@@ -743,12 +814,15 @@ document.getElementById('skinOp').oninput=e=>{ const v=+e.target.value; skinMat.
 document.getElementById('xray').onchange=e=>{ xray=e.target.checked; applyOpacity(); };
 document.getElementById('spin').onchange=e=>{ controls.autoRotate=e.target.checked; };
 const side=document.getElementById('side');
-document.getElementById('menuToggle').onclick=()=>side.classList.toggle('open');
+const appEl=document.getElementById('app');
+document.getElementById('menuToggle').onclick=()=>{ if(innerWidth>820) appEl.classList.remove('collapsed'); else side.classList.toggle('open'); };
+document.getElementById('sideClose').onclick=()=>{ if(innerWidth>820) appEl.classList.add('collapsed'); else side.classList.remove('open'); };
 
 /* ---------------- 공유 링크 ---------------- */
 const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 async function openHash(){
   const h=decodeURIComponent(location.hash.slice(1)); if(!h) return;
+  const want=h.startsWith('female-')?'female':'male'; if(want!==SEX) await switchSex(want,{keepHash:true});
   const p=Object.values(parts).find(q=>slugOf(q)===h); if(!p) return;
   if(!sysOn[p.sys]){ sysOn[p.sys]=true; const i=document.querySelector(`details[data-sys=${p.sys}] input`); if(i) i.checked=true; updateVisibility(); }
   await ensureSys(p.sys); if(selId!==p.id) select(p.id,{focus:true});
@@ -811,6 +885,7 @@ const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random(
 function setMode(m){
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   quiz.on=m==='quiz';
+  stage.classList.toggle('docked',quiz.on);
   if(quiz.on){ select(null); isoId=null; updateVisibility(); qEl.classList.remove('hidden'); nextQ(); }
   else { qEl.classList.add('hidden'); quiz.target=null; paint(); applyOpacity(); }
 }
@@ -830,7 +905,7 @@ function nextQ(){
     const used=new Set([t.ko]); const cands=[...shuffle(P.filter(p=>p.grp===t.grp)),...shuffle(P.filter(p=>p.sys===t.sys)),...shuffle(P)];
     const opts=[t]; for(const c of cands){ if(opts.length>=4) break; if(!used.has(c.ko)){ used.add(c.ko); opts.push(c); } }
     qopts.innerHTML=''; shuffle(opts).forEach(o=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=o.ko; b.dataset.id=o.id; b.onclick=()=>answerName(o,b); qopts.appendChild(b); });
-    focusPart(t);
+    focusPart(t,4);
   } else {
     qprompt.innerHTML=`3D 모델에서 <b>${esc(t.ko)}</b>${t.old?` <span style="color:var(--muted)">(${esc(t.old)})</span>`:''}을(를) 클릭하세요.`;
     qopts.innerHTML=''; flyTo(HOME.t,HOME.p);
@@ -846,8 +921,8 @@ function answerName(o,b){ if(quiz.answered) return; const ok=o.id===quiz.target.
 function answerLocate(id){ if(quiz.answered) return; const ok=id===quiz.target.id; reveal(ok, ok?'':`클릭한 곳은 '${esc(parts[id].ko)}'예요.`); focusPart(quiz.target); }
 
 /* ---------------- 루프 ---------------- */
-function resize(){ const r=stage.getBoundingClientRect(); renderer.setSize(r.width,r.height,false); camera.aspect=r.width/Math.max(1,r.height); camera.updateProjectionMatrix(); }
-new ResizeObserver(resize).observe(stage); resize();
+function resize(){ const w=canvas.clientWidth, h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas); resize();
 const clock=new THREE.Clock();
 function loop(){
   requestAnimationFrame(loop);
