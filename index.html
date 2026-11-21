@@ -886,6 +886,9 @@ function setMode(m){
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   quiz.on=m==='quiz';
   stage.classList.toggle('docked',quiz.on);
+  const app_=document.getElementById('app');
+  if(quiz.on&&innerWidth>820&&innerWidth<1300&&!app_.classList.contains('collapsed')){ app_.classList.add('collapsed'); app_.dataset.autoCollapsed='1'; }
+  if(!quiz.on&&app_.dataset.autoCollapsed){ app_.classList.remove('collapsed'); delete app_.dataset.autoCollapsed; }
   if(quiz.on){ select(null); isoId=null; updateVisibility(); qEl.classList.remove('hidden'); nextQ(); }
   else { qEl.classList.add('hidden'); quiz.target=null; paint(); applyOpacity(); }
 }
