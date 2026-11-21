@@ -673,7 +673,7 @@ async function load(){
   ldText.textContent='모델 조립 중…';
   for(const p of MAN.parts) if(bufs[p.f]) buildMeshes(p,bufs[p.f]);
   first.forEach(f=>loaded[sysOfFile(f)]=true);
-  const L=document.getElementById('loading'); L.style.opacity=0; setTimeout(()=>L.remove(),400);
+  const L=document.getElementById('loading'); if(L){ L.style.opacity=0; L.id='loading-old'; setTimeout(()=>L.remove(),400); }
 }
 let GEN=0;
 function showLoading(){
