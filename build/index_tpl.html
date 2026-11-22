@@ -69,6 +69,8 @@ details.sub>summary::-webkit-details-marker{display:none}
 .reg.on{border-color:rgba(34,211,238,.45);background:rgba(34,211,238,.08)}
 .reg.on .rt{color:#fff}.reg.on .rt:before{background:var(--acc);border-color:var(--acc)}
 .reg .rs{background:none;border:0;border-left:1px solid var(--line);color:var(--muted);font-size:11px;padding:6px 7px}
+#regAll.on{color:var(--acc);border-color:var(--acc)}
+.reghint{font-size:11px;color:var(--muted);margin:0 0 6px;line-height:1.5}
 .reg .rs:hover{color:#fff;background:rgba(34,211,238,.15)}
 .stepper{display:flex;gap:5px;margin-top:8px;align-items:center}
 .stepper button{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:7px;font-size:12px;padding:5px 8px;color:#cbd5e1}
@@ -170,8 +172,9 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
       <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
-    <details class="sect" open id="regSect"><summary><span class="schev">▶</span>구획 <span style="font-weight:400;color:var(--muted);font-size:12px">해부 실습용</span><button class="opbtn" id="regAll" title="모든 구획 켜기">전체</button></summary>
+    <details class="sect" open id="regSect"><summary><span class="schev">▶</span>구획 <span style="font-weight:400;color:var(--muted);font-size:12px">해부 실습용</span><button class="opbtn" id="regAll" title="처음 전신으로">↺ 전신</button></summary>
     <div class="regbox">
+      <div class="reghint">구획을 누르면 그 부위만 보이고, 다른 구획을 누르면 추가돼요. "↺ 전신"으로 처음 상태로.</div>
       <div class="regs" id="regs"></div>
       <div class="stepper"><button id="stepPrev">◀ 이전</button><span id="stepLbl">실습 순서대로 보기</span><button id="stepNext">다음 ▶</button></div>
     </div>
@@ -193,7 +196,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
     <div class="bar" id="viewBar">
       <a id="boneLink" href="bones/">🦴 골학 3D <span>Osteology →</span></a>
       <div class="seg">
-        <button data-view="front">앞</button><button data-view="back">뒤</button><button data-view="right">오른쪽</button><button data-view="left">왼쪽</button><button data-view="reset" title="처음 시점">↺</button>
+        <button data-view="front">앞</button><button data-view="back">뒤</button><button data-view="right">오른쪽</button><button data-view="left">왼쪽</button><button data-view="reset" title="처음으로 (전신·처음 시점)">↺ 처음으로</button>
       </div>
     </div>
     <div id="isoChip"><span id="isoName"></span><button id="isoOff">전체 보기</button></div>
@@ -246,6 +249,8 @@ const REGIONS=[
   {k:'leg',ko:'다리',tip:'볼기·넙다리·종아리·발'},
 ];
 const regionOn={}; REGIONS.forEach(r=>regionOn[r.k]=true);
+const regSel=new Set(); // 비어 있으면 전신
+function applySel(){ REGIONS.forEach(r=>regionOn[r.k]=regSel.size===0||regSel.has(r.k)); }
 const GROUP_ORDER=['자궁','난소·자궁관','유방','콩팥','방광','허파구역','기관지','후두','간·이자','무릎','척수','심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
 
 /*INFO*/
@@ -418,7 +423,7 @@ async function switchSex(sex,{keepHash=false}={}){
     ? '3D 모델: <a href="https://humanatlas.io/3d-reference-library" target="_blank" rel="noopener">HuBMAP HRA 3D Reference Object Library</a> (Visible Human Female), CC BY 4.0 — 웹용으로 경량화·재구성함. 여성 1인 기반 기준 모델입니다. 교육용이며 진단용이 아닙니다.'
     : '3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.';
   if(!keepHash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
-  REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl();
+  regSel.clear(); applySel(); stepI=-1; updStepLbl();
   showLoading(); await load(); buildRegions(); buildList(); updateVisibility(); applyOpacity(); paint(); updateClip(); flyTo(HOME.t,HOME.p);
 }
 document.querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>switchSex(b.dataset.sex));
@@ -452,7 +457,7 @@ function updateVisibility(){
   const allOn=REGIONS.every(r=>regionOn[r.k]);
   document.querySelectorAll('.item').forEach(b=>{ const p=parts[b.dataset.id]; b.classList.toggle('rhide',!allOn&&p&&!inRegions(p)); });
   document.querySelectorAll('details.sys').forEach(d=>{ const n=[...d.querySelectorAll('.item')].filter(b=>!b.classList.contains('rhide')).length; const c=d.querySelector('.cnt'); if(c) c.textContent=(c.textContent.includes('⤓')?'⤓ ':'')+n; });
-  document.querySelectorAll('.reg').forEach(e=>e.classList.toggle('on',!!regionOn[e.dataset.r]));
+  document.querySelectorAll('.reg').forEach(e=>e.classList.toggle('on',regSel.has(e.dataset.r))); const ra=document.getElementById('regAll'); if(ra) ra.classList.toggle('on',regSel.size===0);
   const chip=document.getElementById('isoChip'); chip.style.display=isoId?'flex':'none';
   if(isoId) document.getElementById('isoName').textContent=`'${enName(parts[isoId])}'만 보는 중`;
 }
@@ -487,7 +492,7 @@ function focusPart(p,k=2.2){
   flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(k>2.2?0.55:0.28,sz*k))));
 }
 const VIEWS={front:[0,1.05,3.6],back:[0,1.05,-3.6],right:[-3.6,1.05,0],left:[3.6,1.05,0]};
-document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.dataset.view; flyTo(HOME.t, v==='reset'?HOME.p:V(...VIEWS[v])); });
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.dataset.view; if(v==='reset'&&regSel.size){ showWhole(); return; } flyTo(HOME.t, v==='reset'?HOME.p:V(...VIEWS[v])); });
 
 /* ---------------- 정보 패널 ---------------- */
 const info=document.getElementById('info');
@@ -562,13 +567,13 @@ function buildRegions(){
     if(MAN&&!MAN.regions[r.k]) continue;
     const e=document.createElement('div'); e.className='reg'; e.dataset.r=r.k; e.title=r.tip;
     e.innerHTML=`<button class="rt">${r.ko}</button><button class="rs" title="이 구획만 보기">만</button>`;
-    e.querySelector('.rt').onclick=()=>{ regionOn[r.k]=!regionOn[r.k]; stepI=-1; updStepLbl(); updateVisibility(); };
+    e.querySelector('.rt').onclick=()=>{ if(regSel.size===0){ soloRegion(r.k); return; } if(regSel.has(r.k)) regSel.delete(r.k); else regSel.add(r.k); if(regSel.size===0){ showWhole(); return; } applySel(); stepI=-1; updStepLbl(); updateVisibility(); };
     e.querySelector('.rs').onclick=()=>soloRegion(r.k);
     box.appendChild(e);
   }
 }
 function soloRegion(k,fly=true){
-  REGIONS.forEach(r=>regionOn[r.k]=(r.k===k)); if(selId&&!parts[selId]?.meshes.some(m=>m.userData.region===k)) select(null);
+  regSel.clear(); regSel.add(k); applySel(); if(selId&&!parts[selId]?.meshes.some(m=>m.userData.region===k)) select(null);
   updateVisibility(); stepI=STEP.indexOf(k); updStepLbl();
   const R_=MAN.regions[k]; if(fly&&R_){ const c=V(...R_.c), lo=V(...R_.lo), hi=V(...R_.hi); const size=hi.clone().sub(lo).length();
     const dir = k==='back'?V(0,0.15,-1): k==='brain'?V(0.35,0.55,1): V(0.25,0.12,1); dir.normalize();
@@ -578,7 +583,8 @@ function updStepLbl(){ const r=REGIONS.find(x=>x.k===STEP[stepI]); document.getE
 const avail=()=>STEP.filter(k=>MAN.regions[k]);
 document.getElementById('stepNext').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=(j+1)%a.length; soloRegion(a[j]); };
 document.getElementById('stepPrev').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=j<=0?a.length-1:j-1; soloRegion(a[j]); };
-document.getElementById('regAll').onclick=e=>{ e.preventDefault(); e.stopPropagation(); REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl(); updateVisibility(); flyTo(HOME.t,HOME.p); };
+function showWhole(){ regSel.clear(); applySel(); stepI=-1; updStepLbl(); updateVisibility(); flyTo(HOME.t,HOME.p); }
+document.getElementById('regAll').onclick=e=>{ e.preventDefault(); e.stopPropagation(); showWhole(); };
 
 /* ---------------- 공유 링크 ---------------- */
 const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -587,7 +593,7 @@ async function openHash(){
   const want=h.startsWith('female-')?'female':'male'; if(want!==SEX) await switchSex(want,{keepHash:true});
   const p=Object.values(parts).find(q=>slugOf(q)===h); if(!p) return;
   if(!sysOn[p.sys]){ sysOn[p.sys]=true; const i=document.querySelector(`details[data-sys=${p.sys}] input`); if(i) i.checked=true; updateVisibility(); }
-  if(!inRegions(p)){ REGIONS.forEach(r=>regionOn[r.k]=true); updateVisibility(); }
+  if(!inRegions(p)){ regSel.clear(); applySel(); updateVisibility(); }
   await ensureSys(p.sys); if(selId!==p.id) select(p.id,{focus:true});
 }
 addEventListener('hashchange',openHash);

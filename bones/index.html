@@ -71,6 +71,7 @@ button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
 .seg button.on{background:var(--acc);color:#1a1205;font-weight:700}
 .seg button:hover:not(.on){background:rgba(255,255,255,.06)}
 #backBtn button{color:var(--acc);font-weight:700}
+#quizBtn{border-color:#a78bfa}#quizBtn button{color:#fff;font-weight:700;background:rgba(124,58,237,.35);padding:6px 14px}#quizBtn button:hover{background:rgba(124,58,237,.6)}
 #menuBtn{display:none}
 #panel{position:absolute;right:0;top:0;bottom:0;width:min(340px,92vw);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;z-index:7;transform:translateX(105%);transition:transform .25s;box-shadow:0 0 40px rgba(0,0,0,.6)}
 #panel.open{transform:none}
@@ -157,7 +158,8 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
       <div class="seg" id="viewSeg"></div>
       <div class="seg" id="presetSeg"></div>
       <div class="seg" id="labSeg"></div>
-      <div class="seg" id="panelBtn"><button onclick="document.getElementById('panel').classList.toggle('open')">구조물 목록 · 구멍표 · 퀴즈</button></div>
+      <div class="seg" id="panelBtn"><button onclick="document.getElementById('panel').classList.toggle('open')">구조물 목록 · 구멍표</button></div>
+      <div class="seg" id="quizBtn"><button>🎯 퀴즈</button></div>
     </div>
     <div id="load">불러오는 중…</div>
     <div id="info"></div>
@@ -444,10 +446,13 @@ function renderList(){
 }
 $('#q').addEventListener('input',renderList);
 $('#backBtn button').onclick=()=>enterOverview();
+$('#quizBtn button').onclick=async()=>{
+  if(S.mode==='overview'){ S.quiz={mode:'lr',ok:0,n:0,back:null}; S.tab='quiz'; await nextQuiz(); $('#panel').classList.add('open'); renderPanel(); return; }
+  S.tab='quiz'; $('#panel').classList.add('open'); renderPanel(); };
 
 function renderTop(){
   const ov=S.mode==='overview';
-  $('#backBtn').style.display=ov?'none':'inline-flex'; $('#panelBtn').style.display=ov?'none':'inline-flex'; if(ov) $('#panel').classList.remove('open');
+  $('#backBtn').style.display=ov?'none':'inline-flex'; $('#panelBtn').style.display=ov?'none':'inline-flex'; if(ov&&!S.quiz) $('#panel').classList.remove('open'); $('#quizBtn button').textContent=ov?'🎯 좌우 구분 퀴즈':'🎯 퀴즈';
   if(ov){
     $('#ttl').innerHTML='Skeleton<small>전신 뼈대 · 뼈를 누르면 이름과 설명이 나와요</small>';
     $('#sideSeg').style.display='none'; $('#presetSeg').style.display='none'; $('#labSeg').style.display='none';
@@ -545,7 +550,7 @@ const optHTML=k=>`${esc(enS(LM[k]))}<span class="ko">${esc(koS(LM[k]))}</span>`;
 function renderQuiz(){
   const b=$('#pbody'); const q=S.quiz;
   const hasF=uniqKeys().some(k=>LM[k].t==='f'&&LM[k].pas);
-  let h=`<div class="muted">모드를 고르세요 — 지금 보고 있는 뼈(${esc(S.item.en)})에서 출제됩니다. 좌우 구분은 모든 짝뼈에서 무작위.</div><div style="margin:8px 0">`+
+  let h=`<div class="qq" style="margin-top:0">Quiz · 퀴즈</div><div class="muted">이름 맞히기·위치 찾기·통과 구조물은 지금 보고 있는 뼈(${esc(S.item.en)})에서, 좌우 구분은 모든 짝뼈에서 무작위로 나옵니다.</div><div style="margin:8px 0">`+
     [['name','이름 맞히기'],['find','위치 찾기'],...(hasF?[['pass','통과 구조물']]:[]),['lr','좌우 구분']].map(([m,n])=>`<button class="ghost${q&&q.mode===m?' on':''}" data-m="${m}">${n}</button>`).join('')+'</div>';
   if(q) h+=`<div class="card"><span class="score">${q.ok} / ${q.n}</span><div id="qbody"></div></div><button class="ghost" id="qstop">퀴즈 끝내기</button>`;
   b.innerHTML=h;
@@ -553,7 +558,7 @@ function renderQuiz(){
   if(q){ $('#qstop').onclick=stopQuiz; drawQ(); }
 }
 function startQuiz(m){ S.quiz={mode:m,ok:0,n:0}; hideInfo(); if(m==='lr') S.quiz.back={id:S.item.id,side:S.side}; nextQuiz(); renderQuiz(); }
-function stopQuiz(){ const q=S.quiz; S.quiz=null; if(q&&q.mode==='lr'&&q.back) loadItem(q.back.id,q.back.side); renderPanel(); renderTop(); dirty=true; }
+function stopQuiz(){ const q=S.quiz; S.quiz=null; if(q&&q.mode==='lr'){ if(q.back) loadItem(q.back.id,q.back.side); else { $('#panel').classList.remove('open'); S.tab='lm'; enterOverview(); return; } } renderPanel(); renderTop(); dirty=true; }
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 async function nextQuiz(){
