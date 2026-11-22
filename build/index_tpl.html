@@ -27,7 +27,17 @@ input[type=range]{width:130px;accent-color:var(--acc)}
 .sw span:before{content:"";position:absolute;width:15px;height:15px;left:2px;top:2px;border-radius:50%;background:#cbd5e1;transition:.2s}
 .sw input:checked+span{background:var(--acc)}
 .sw input:checked+span:before{transform:translateX(15px);background:#fff}
-#list{flex:1;overflow:auto;padding:6px 8px 20px}
+#sideScroll{flex:1;overflow:auto;min-height:0}
+#list{padding:2px 8px 16px}
+details.sect{border-bottom:1px solid var(--line)}
+details.sect>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 16px;font-size:13px;font-weight:700;color:#dbe3ee;user-select:none}
+details.sect>summary::-webkit-details-marker{display:none}
+details.sect>summary:hover{background:rgba(255,255,255,.03)}
+details.sect>summary .schev{color:var(--muted);font-size:11px;transition:transform .2s;margin-left:2px}
+details.sect[open]>summary .schev{transform:rotate(90deg)}
+details.sect>summary .opbtn{margin-left:auto}
+details.sect .regbox{border-bottom:0;padding-top:0}
+.panel .sub b{color:#e6eaf2;font-weight:500}
 details.sys{border-radius:10px;margin:4px 0}
 details.sys>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500}
 details.sys>summary::-webkit-details-marker{display:none}
@@ -141,6 +151,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>신경·근육·혈관은 아래 목록에서 켜세요</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
     </header>
+    <div id="sideScroll">
     <div class="controls">
       <div class="row">피부 윤곽 <input id="skinOp" type="range" min="0" max="0.5" step="0.01" value="0.08"></div>
       <div class="row">뼈 반투명 (X-ray) <label class="sw"><input id="xray" type="checkbox"><span></span></label></div>
@@ -148,12 +159,16 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
       <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
+    <details class="sect" open id="regSect"><summary><span class="schev">▶</span>구획 <span style="font-weight:400;color:var(--muted);font-size:12px">해부 실습용</span><button class="opbtn" id="regAll" title="모든 구획 켜기">전체</button></summary>
     <div class="regbox">
-      <h3>구획 (해부 실습용) <button class="opbtn" id="regAll" title="모든 구획 켜기">전체</button></h3>
       <div class="regs" id="regs"></div>
       <div class="stepper"><button id="stepPrev">◀ 이전</button><span id="stepLbl">실습 순서대로 보기</span><button id="stepNext">다음 ▶</button></div>
     </div>
+    </details>
+    <details class="sect" open id="sysSect"><summary><span class="schev">▶</span>계통 <span style="font-weight:400;color:var(--muted);font-size:12px">켜고 끄기 · 구조물 목록</span></summary>
     <div id="list"></div>
+    </details>
+    </div>
     <footer id="foot">3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
   </aside>
   <main id="stage">
@@ -464,6 +479,7 @@ document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.da
 
 /* ---------------- 정보 패널 ---------------- */
 const info=document.getElementById('info');
+const enName=p=>{ const e=p.en.replace(/^Female /,''); return e.charAt(0).toUpperCase()+e.slice(1); };
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function select(id,{focus=false}={}){
   selId=id; paint();
@@ -473,8 +489,8 @@ function select(id,{focus=false}={}){
   const general = I && I.ko && I.ko!==p.ko.replace(/^(왼쪽|오른쪽) /,'') ? `<div class="muted" style="margin:-4px 0 8px">아래 설명은 <b>${esc(I.ko)}</b> 전체에 대한 내용이에요.</div>`:'';
   info.innerHTML=`<button class="close" id="infoClose">×</button>
     <span class="systag"><span class="dot" style="color:${S.dot};background:${S.dot}"></span>${S.ko}${p.grp&&p.grp!=='기타'?' · '+esc(p.grp):''}</span>
-    <h2>${esc(p.ko)}</h2>
-    <div class="sub">${p.old&&p.old!==p.ko?esc(p.old)+' · ':''}${esc(p.en)}</div>
+    <h2>${esc(enName(p))}</h2>
+    <div class="sub"><b>${esc(p.ko)}</b>${p.old&&p.old!==p.ko?' · '+esc(p.old):''}</div>
     ${I?`${general}<p>${esc(I.desc)}</p>
       ${I.points?.length?`<h4>핵심 포인트</h4><ul>${I.points.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
       ${I.clinical?`<h4>임상 연관</h4><p class="clin">${esc(I.clinical)}</p>`:''}`
@@ -549,7 +565,7 @@ function updStepLbl(){ const r=REGIONS.find(x=>x.k===STEP[stepI]); document.getE
 const avail=()=>STEP.filter(k=>MAN.regions[k]);
 document.getElementById('stepNext').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=(j+1)%a.length; soloRegion(a[j]); };
 document.getElementById('stepPrev').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=j<=0?a.length-1:j-1; soloRegion(a[j]); };
-document.getElementById('regAll').onclick=()=>{ REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl(); updateVisibility(); flyTo(HOME.t,HOME.p); };
+document.getElementById('regAll').onclick=e=>{ e.preventDefault(); e.stopPropagation(); REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl(); updateVisibility(); flyTo(HOME.t,HOME.p); };
 
 /* ---------------- 공유 링크 ---------------- */
 const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -605,7 +621,7 @@ canvas.addEventListener('pointermove',e=>{ lastEv=e; if(moveRaf) return; moveRaf
   if(down||e.pointerType==='touch'){ tip.style.opacity=0; return; }
   const id=pick(lastEv);
   if(id!==hoverId){ hoverId=id; paint(); }
-  if(id&&!quiz.on){ const p=parts[id]; tip.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`; tip.style.opacity=1;
+  if(id&&!quiz.on){ const p=parts[id]; tip.innerHTML=`${esc(enName(p))}<small>${esc(p.ko)}</small>`; tip.style.opacity=1;
     const r=stage.getBoundingClientRect(); tip.style.left=(lastEv.clientX-r.left+14)+'px'; tip.style.top=(lastEv.clientY-r.top+12)+'px'; }
   else tip.style.opacity=0;
   canvas.style.cursor=id?'pointer':'grab'; }); });
