@@ -6,6 +6,7 @@ import numpy as np
 sys.path.insert(0, '/home/claude/data')
 from common import load, NAMES, to_ha
 import fast_simplification
+import regions as RG
 from names_ko import muscle_ko, vessel_ko, vessel_key
 
 OUT = '/home/claude/anatomy-3d/models'
@@ -297,6 +298,7 @@ for o in NV.build():
 # ---------- 출력 ----------
 allp = np.concatenate([np.concatenate(s['P']) for s in structs.values()])
 lo = allp.min(0) - 0.001; hi = allp.max(0) + 0.001; sc = (hi - lo) / 65535
+RS = {}
 files = {}; manifest = []
 tri = {}
 for i, (en, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta']['sys'], kv[0]))):
@@ -313,6 +315,9 @@ for i, (en, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta
         elif cy < 0.80: m['grp'] = '다리'
         elif cy < 0.98: m['grp'] = '골반·엉덩이'
         else: m['grp'] = '몸통'
+    I, segs, rst = RG.split(m['sys'], m['key'], en, m['grp'], P, I, 'm')
+    for g, (sm, n, mn, mx) in rst.items():
+        a_ = RS.setdefault(g, [np.zeros(3), 0, np.full(3, 9.0), np.full(3, -9.0)]); a_[0] += sm; a_[1] += n; a_[2] = np.minimum(a_[2], mn); a_[3] = np.maximum(a_[3], mx)
     qp = np.round((P - lo) / sc).astype('<u2')
     big = len(P) > 65535
     ib = I.astype('<u4' if big else '<u2')
@@ -324,11 +329,12 @@ for i, (en, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta
     c = ((P.min(0) + P.max(0)) / 2).round(4).tolist(); r = float(np.linalg.norm(P.max(0) - P.min(0)) / 2)
     tri[m['sys']] = tri.get(m['sys'], 0) + len(I) // 3
     manifest.append(dict(id=f's{i}', en=en, ko=m['ko'] or en, old=m['old'], key=m['key'], sys=m['sys'], grp=m['grp'],
-                         f=m['sys'], po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4)))
+                         f=m['sys'], po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4), sg=segs))
 sizes = {}
 for s, b in files.items():
     gz = gzip.compress(bytes(b), 9); open(f'{OUT}/{s}.bin.gz', 'wb').write(gz); sizes[s] = len(gz)
-json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest,
+REG = {RG.REGIONS[g]: dict(c=(v[0] / v[1]).round(4).tolist(), lo=v[2].round(4).tolist(), hi=v[3].round(4).tolist()) for g, v in RS.items()}
+json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest, regions=REG, regionNames=RG.REGIONS,
                source='BodyParts3D © DBCLS (CC BY 4.0)'), open(f'{OUT}/manifest.json', 'w'), ensure_ascii=False, separators=(',', ':'))
 print('structures', len(manifest), 'skipped parts', skipped)
 print('tris', tri); print('gz bytes', sizes, sum(sizes.values()) / 1e6, 'MB')

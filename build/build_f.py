@@ -3,6 +3,7 @@ import re, json, gzip, glob, os, sys
 import numpy as np, trimesh, fast_simplification
 sys.path.insert(0, '/home/claude/data')
 from names_ko import vessel_ko, vessel_key, W
+import regions as RG
 
 OUT = '/home/claude/anatomy-3d/models'
 D = '/home/claude/data/ccf/'
@@ -170,6 +171,7 @@ yoff = -allp[:, 1].min()
 for s in structs.values(): s['P'] = [p + np.array([0, yoff, 0]) for p in s['P']]
 allp[:, 1] += yoff
 lo = allp.min(0) - 0.001; hi = allp.max(0) + 0.001; sc = (hi - lo) / 65535
+RS = {}
 files = {}; manifest = []; tri = {}
 def pretty(en):
     e = re.sub(r'\s*\((L|R)\)$', lambda m: '', en)
@@ -178,6 +180,9 @@ def pretty(en):
     return (('Left ' if side and side.group(1) == 'L' else 'Right ' if side else '') + e).strip().capitalize() if not side else (('Left ' if side.group(1) == 'L' else 'Right ') + e)
 for i, (k, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta']['sys'], kv[0]))):
     m = st['meta']; P = np.concatenate(st['P']); I = np.concatenate(st['I'])
+    I, segs, rst = RG.split(m['sys'], m['key'], m['en'], m['grp'], P, I, 'f')
+    for g, (sm, n, mn, mx) in rst.items():
+        a_ = RS.setdefault(g, [np.zeros(3), 0, np.full(3, 9.0), np.full(3, -9.0)]); a_[0] += sm; a_[1] += n; a_[2] = np.minimum(a_[2], mn); a_[3] = np.maximum(a_[3], mx)
     qp = np.round((P - lo) / sc).astype('<u2'); big = len(P) > 65535
     fsys = 'f_' + m['sys']; b = files.setdefault(fsys, bytearray())
     po = len(b); b += qp.tobytes()
@@ -187,11 +192,12 @@ for i, (k, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta'
     c = ((P.min(0) + P.max(0)) / 2).round(4).tolist(); r = float(np.linalg.norm(P.max(0) - P.min(0)) / 2)
     tri[m['sys']] = tri.get(m['sys'], 0) + len(I) // 3
     manifest.append(dict(id=f'f{i}', en='Female ' + pretty(m['en']), ko=m['ko'], old=m['old'], key=m['key'], sys=m['sys'], grp=m['grp'],
-                         f=fsys, po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4)))
+                         f=fsys, po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4), sg=segs))
 sizes = {}
 for s, b in files.items():
     gz = gzip.compress(bytes(b), 9); open(f'{OUT}/{s}.bin.gz', 'wb').write(gz); sizes[s] = len(gz)
-json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest, sex='female',
+REG = {RG.REGIONS[g]: dict(c=(v[0] / v[1]).round(4).tolist(), lo=v[2].round(4).tolist(), hi=v[3].round(4).tolist()) for g, v in RS.items()}
+json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest, regions=REG, regionNames=RG.REGIONS, sex='female',
                source='HuBMAP HRA 3D Reference Object Library (Visible Human Female), CC BY 4.0'),
           open(f'{OUT}/manifest_f.json', 'w'), ensure_ascii=False, separators=(',', ':'))
 print('structures', len(manifest)); print('tris', tri); print('gz', sizes, sum(sizes.values()) / 1e6, 'MB')

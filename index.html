@@ -40,6 +40,22 @@ details.sub{margin:2px 0 2px 14px}
 details.sub>summary{list-style:none;font-size:12.5px;color:var(--muted);padding:5px 10px;cursor:pointer}
 details.sub>summary::-webkit-details-marker{display:none}
 .item{display:block;width:100%;text-align:left;background:none;border:0;padding:5px 10px 5px 28px;border-radius:7px;font-size:13px;color:#cbd5e1}
+.regbox{padding:10px 14px 12px;border-bottom:1px solid var(--line)}
+.regbox h3{margin:0 0 8px;font-size:12.5px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:6px}
+.regbox h3 button{margin-left:auto}
+.regs{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.reg{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03);overflow:hidden}
+.reg .rt{flex:1;text-align:left;background:none;border:0;padding:6px 8px;font-size:12.5px;color:#cbd5e1;display:flex;align-items:center;gap:6px}
+.reg .rt:before{content:"";width:8px;height:8px;border-radius:2px;border:1px solid #64748b;flex:none}
+.reg.on{border-color:rgba(34,211,238,.45);background:rgba(34,211,238,.08)}
+.reg.on .rt{color:#fff}.reg.on .rt:before{background:var(--acc);border-color:var(--acc)}
+.reg .rs{background:none;border:0;border-left:1px solid var(--line);color:var(--muted);font-size:11px;padding:6px 7px}
+.reg .rs:hover{color:#fff;background:rgba(34,211,238,.15)}
+.stepper{display:flex;gap:5px;margin-top:8px;align-items:center}
+.stepper button{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:7px;font-size:12px;padding:5px 8px;color:#cbd5e1}
+.stepper button:hover{border-color:var(--acc);color:#fff}
+.stepper span{flex:1;text-align:center;font-size:12px;color:var(--muted)}
+.item.rhide{display:none!important}
 .opbtn{background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-size:10.5px;padding:1px 5px;margin-left:2px;min-width:38px}
 .opbtn:hover{color:#fff;border-color:var(--acc)}
 select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;font-size:12.5px}
@@ -132,6 +148,11 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
       <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
+    <div class="regbox">
+      <h3>구획 (해부 실습용) <button class="opbtn" id="regAll" title="모든 구획 켜기">전체</button></h3>
+      <div class="regs" id="regs"></div>
+      <div class="stepper"><button id="stepPrev">◀ 이전</button><span id="stepLbl">실습 순서대로 보기</span><button id="stepNext">다음 ▶</button></div>
+    </div>
     <div id="list"></div>
     <footer id="foot">3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.</footer>
   </aside>
@@ -184,6 +205,20 @@ const SYSTEMS = {
   arterial:   {ko:'동맥', dot:'#ff4d4d', lazy:true},
   venous:     {ko:'정맥', dot:'#4d7cff', lazy:true},
 };
+const REGIONS=[
+  {k:'chestwall',ko:'가슴벽',tip:'가슴근육·갈비뼈·갈비사이근·유방'},
+  {k:'abdwall',ko:'배벽',tip:'배근육·샅고랑 부위'},
+  {k:'abdomen',ko:'배안 (복부 장기)',tip:'위·간·창자·콩팥·뒤배벽'},
+  {k:'thorax',ko:'가슴안 (흉부 장기)',tip:'심장·허파·세로칸·가로막'},
+  {k:'pelvis',ko:'골반·회음',tip:'골반뼈·골반 장기·생식기·회음'},
+  {k:'neck',ko:'목',tip:'목 근육·후두·목 혈관·신경'},
+  {k:'head',ko:'머리·얼굴',tip:'머리뼈·얼굴·눈·입'},
+  {k:'brain',ko:'뇌',tip:'뇌·뇌혈관·뇌신경 시작부'},
+  {k:'back',ko:'등·척주',tip:'척추·척수·등근육'},
+  {k:'arm',ko:'팔',tip:'어깨·위팔·아래팔·손'},
+  {k:'leg',ko:'다리',tip:'볼기·넙다리·종아리·발'},
+];
+const regionOn={}; REGIONS.forEach(r=>regionOn[r.k]=true);
 const GROUP_ORDER=['자궁','난소·자궁관','유방','콩팥','방광','허파구역','기관지','후두','간·이자','무릎','척수','심장·대혈관','머리·목','몸통','팔','골반·엉덩이','다리','머리뼈','척주','가슴우리','팔뼈','골반','다리뼈','치아','연골','뇌','눈','심장','판막','림프기관','허파','기관지','입','간·쓸개·이자','작은창자','큰창자'];
 
 const INFO = {
@@ -652,14 +687,20 @@ function buildMeshes(p,b){
   const idx=p.i32?new Uint32Array(b,p.io,p.ic):new Uint16Array(b,p.io,p.ic);
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx.slice(),1));
   g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
-  if(p.sys==='skin'){ const m=new THREE.Mesh(g,skinMat); m.renderOrder=10; skinG.add(m); return; }
+  const segs=(p.sg&&p.sg.length)?p.sg:[[-1,0,p.ic]];
+  const geoms=segs.map(([rid,st,cnt])=>{ if(segs.length===1) return g; const g2=new THREE.BufferGeometry();
+    g2.setAttribute('position',g.attributes.position); g2.setAttribute('normal',g.attributes.normal); g2.setIndex(g.index); g2.setDrawRange(st,cnt);
+    g2.boundingSphere=g.boundingSphere; g2.boundingBox=g.boundingBox; return g2; });
+  const regOf=i=>segs[i][0]>=0?MAN.regionNames[segs[i][0]]:null;
+  if(p.sys==='skin'){ geoms.forEach((gg,i)=>{ const m=new THREE.Mesh(gg,skinMat); m.renderOrder=10; m.userData.region=regOf(i); m.visible=!m.userData.region||regionOn[m.userData.region]; skinG.add(m); }); return; }
   const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
   if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
   const ghost=/^Female .*\bfat$|^Female (left |right )?kidney$/i.test(p.en)?0.3:/^Female .*cortex$/i.test(p.en)?0.5:null;
   if(ghost!=null){ mat.transparent=true; mat.opacity=ghost; mat.depthWrite=false; }
-  const m=new THREE.Mesh(g,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity;
-  m.visible=sysOn[p.sys]&&(!isoId||p.id===isoId); if(typeof clipOn!=='undefined'&&clipOn) mat.side=THREE.DoubleSide;
-  groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m);
+  if(typeof clipOn!=='undefined'&&clipOn) mat.side=THREE.DoubleSide;
+  geoms.forEach((gg,i)=>{
+    const m=new THREE.Mesh(gg,mat); m.userData.id=p.id; m.userData.bone=p.sys==='skeletal'; m.userData.baseOpacity=mat.opacity; m.userData.region=regOf(i);
+    m.visible=meshVisible(p,m); groups[p.sys].add(m); pickables.push(m); parts[p.id].meshes.push(m); });
 }
 async function loadFiles(files,onBytes){
   const bufs={}; await Promise.all(files.map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); })); return bufs;
@@ -696,7 +737,8 @@ async function switchSex(sex,{keepHash=false}={}){
     ? '3D 모델: <a href="https://humanatlas.io/3d-reference-library" target="_blank" rel="noopener">HuBMAP HRA 3D Reference Object Library</a> (Visible Human Female), CC BY 4.0 — 웹용으로 경량화·재구성함. 여성 1인 기반 기준 모델입니다. 교육용이며 진단용이 아닙니다.'
     : '3D 모델: <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html" target="_blank" rel="noopener">BodyParts3D</a> © The Database Center for Life Science (DBCLS), CC BY 4.0 — 웹용으로 경량화·재구성함. 성인 남성 1인의 기준 모델로, 개인차는 반영되지 않습니다. 교육용이며 진단용이 아닙니다.';
   if(!keepHash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
-  showLoading(); await load(); buildList(); updateVisibility(); applyOpacity(); paint(); updateClip(); flyTo(HOME.t,HOME.p);
+  REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl();
+  showLoading(); await load(); buildRegions(); buildList(); updateVisibility(); applyOpacity(); paint(); updateClip(); flyTo(HOME.t,HOME.p);
 }
 document.querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>switchSex(b.dataset.sex));
 
@@ -711,7 +753,7 @@ async function ensureSys(s){
     if(gen!==GEN){ chipL.style.display='none'; return; }
     chipL.textContent=`${SYSTEMS[s].ko} 조립 중…`; await new Promise(r=>setTimeout(r,30));
     for(const p of MAN.parts) if(p.f===fn) buildMeshes(p,bufs[fn]);
-    loaded[s]=true; chipL.style.display='none'; applyOpacity(); const c=document.querySelector(`details[data-sys=${s}] .cnt`); if(c) c.textContent=c.textContent.replace('⤓ ','');
+    loaded[s]=true; chipL.style.display='none'; applyOpacity(); updateVisibility(); const c=document.querySelector(`details[data-sys=${s}] .cnt`); if(c) c.textContent=c.textContent.replace('⤓ ','');
   })();
   return loading[s];
 }
@@ -721,8 +763,15 @@ const sysOn={}; for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
 let selId=null, hoverId=null, isoId=null, xray=false; const sysOp={};
 const quiz={on:false,type:'name',target:null,answered:false,score:0,total:0};
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+function meshVisible(p,m){ return isoId ? p.id===isoId : (sysOn[p.sys] && (!m.userData.region || regionOn[m.userData.region])); }
+const inRegions=p=>!p.sg||p.sg.some(s=>regionOn[MAN.regionNames[s[0]]]);
 function updateVisibility(){
-  for(const p of Object.values(parts)){ const v=sysOn[p.sys]&&(!isoId||p.id===isoId); p.meshes.forEach(m=>m.visible=v); }
+  for(const p of Object.values(parts)) p.meshes.forEach(m=>m.visible=meshVisible(p,m));
+  for(const m of skinG.children) m.visible=!m.userData.region||regionOn[m.userData.region];
+  const allOn=REGIONS.every(r=>regionOn[r.k]);
+  document.querySelectorAll('.item').forEach(b=>{ const p=parts[b.dataset.id]; b.classList.toggle('rhide',!allOn&&p&&!inRegions(p)); });
+  document.querySelectorAll('details.sys').forEach(d=>{ const n=[...d.querySelectorAll('.item')].filter(b=>!b.classList.contains('rhide')).length; const c=d.querySelector('.cnt'); if(c) c.textContent=(c.textContent.includes('⤓')?'⤓ ':'')+n; });
+  document.querySelectorAll('.reg').forEach(e=>e.classList.toggle('on',!!regionOn[e.dataset.r]));
   const chip=document.getElementById('isoChip'); chip.style.display=isoId?'flex':'none';
   if(isoId) document.getElementById('isoName').textContent=`'${parts[isoId].ko}'만 보는 중`;
 }
@@ -747,7 +796,11 @@ function paint(){
 let tween=null;
 function flyTo(t,p,dur=750){ tween={t0:performance.now(),dur,fT:controls.target.clone(),tT:t.clone(),fP:camera.position.clone(),tP:p.clone()}; }
 function focusPart(p,k=2.2){
-  if(!p.meshes.length) return; const box=new THREE.Box3(); p.meshes.forEach(m=>box.expandByObject(m));
+  if(!p.meshes.length) return; const box=new THREE.Box3(); const vm=p.meshes.filter(m=>m.visible);
+  if(vm.length&&vm.length<p.meshes.length&&p.sg){ // 보이는 구획의 중심 쪽으로
+    const lo=V(...MAN.lo); vm.forEach(m=>{ const r=MAN.regions[m.userData.region]; if(r){ box.expandByPoint(V(...r.lo)); box.expandByPoint(V(...r.hi)); } });
+    p.meshes.forEach(m=>{}); const pb=new THREE.Box3(); p.meshes.forEach(m=>pb.expandByObject(m)); box.intersect(pb); if(box.isEmpty()) p.meshes.forEach(m=>box.expandByObject(m)); }
+  else p.meshes.forEach(m=>box.expandByObject(m));
   const c=box.getCenter(V()), sz=box.getSize(V()).length();
   const dir=camera.position.clone().sub(controls.target).normalize();
   flyTo(c,c.clone().add(dir.multiplyScalar(Math.max(k>2.2?0.55:0.28,sz*k))));
@@ -818,6 +871,32 @@ const appEl=document.getElementById('app');
 document.getElementById('menuToggle').onclick=()=>{ if(innerWidth>820) appEl.classList.remove('collapsed'); else side.classList.toggle('open'); };
 document.getElementById('sideClose').onclick=()=>{ if(innerWidth>820) appEl.classList.add('collapsed'); else side.classList.remove('open'); };
 
+/* ---------------- 구획 ---------------- */
+const STEP=['chestwall','abdwall','abdomen','thorax','pelvis','neck','head','brain','back','arm','leg']; let stepI=-1;
+function buildRegions(){
+  const box=document.getElementById('regs'); box.innerHTML='';
+  for(const r of REGIONS){
+    if(MAN&&!MAN.regions[r.k]) continue;
+    const e=document.createElement('div'); e.className='reg'; e.dataset.r=r.k; e.title=r.tip;
+    e.innerHTML=`<button class="rt">${r.ko}</button><button class="rs" title="이 구획만 보기">만</button>`;
+    e.querySelector('.rt').onclick=()=>{ regionOn[r.k]=!regionOn[r.k]; stepI=-1; updStepLbl(); updateVisibility(); };
+    e.querySelector('.rs').onclick=()=>soloRegion(r.k);
+    box.appendChild(e);
+  }
+}
+function soloRegion(k,fly=true){
+  REGIONS.forEach(r=>regionOn[r.k]=(r.k===k)); if(selId&&!parts[selId]?.meshes.some(m=>m.userData.region===k)) select(null);
+  updateVisibility(); stepI=STEP.indexOf(k); updStepLbl();
+  const R_=MAN.regions[k]; if(fly&&R_){ const c=V(...R_.c), lo=V(...R_.lo), hi=V(...R_.hi); const size=hi.clone().sub(lo).length();
+    const dir = k==='back'?V(0,0.15,-1): k==='brain'?V(0.35,0.55,1): V(0.25,0.12,1); dir.normalize();
+    flyTo(c, c.clone().add(dir.multiplyScalar(Math.max(0.45,size*1.25)))); }
+}
+function updStepLbl(){ const r=REGIONS.find(x=>x.k===STEP[stepI]); document.getElementById('stepLbl').textContent=r?`${stepI+1}/${STEP.length} · ${r.ko}`:'실습 순서대로 보기'; }
+const avail=()=>STEP.filter(k=>MAN.regions[k]);
+document.getElementById('stepNext').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=(j+1)%a.length; soloRegion(a[j]); };
+document.getElementById('stepPrev').onclick=()=>{ const a=avail(); let j=a.indexOf(STEP[stepI]); j=j<=0?a.length-1:j-1; soloRegion(a[j]); };
+document.getElementById('regAll').onclick=()=>{ REGIONS.forEach(r=>regionOn[r.k]=true); stepI=-1; updStepLbl(); updateVisibility(); flyTo(HOME.t,HOME.p); };
+
 /* ---------------- 공유 링크 ---------------- */
 const slugOf=p=>p.en.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 async function openHash(){
@@ -825,6 +904,7 @@ async function openHash(){
   const want=h.startsWith('female-')?'female':'male'; if(want!==SEX) await switchSex(want,{keepHash:true});
   const p=Object.values(parts).find(q=>slugOf(q)===h); if(!p) return;
   if(!sysOn[p.sys]){ sysOn[p.sys]=true; const i=document.querySelector(`details[data-sys=${p.sys}] input`); if(i) i.checked=true; updateVisibility(); }
+  if(!inRegions(p)){ REGIONS.forEach(r=>regionOn[r.k]=true); updateVisibility(); }
   await ensureSys(p.sys); if(selId!==p.id) select(p.id,{focus:true});
 }
 addEventListener('hashchange',openHash);
@@ -880,7 +960,7 @@ addEventListener('keydown',e=>{ if(e.key==='Escape') select(null); });
 
 /* ---------------- 퀴즈 ---------------- */
 const qEl=document.getElementById('quiz'), qprompt=document.getElementById('qprompt'), qopts=document.getElementById('qopts'), qfb=document.getElementById('qfb');
-const pool=()=>Object.values(parts).filter(p=>p.info&&p.meshes.length&&sysOn[p.sys]&&p.r>0.012&&!['tooth','disk','costal'].includes(p.key));
+const pool=()=>Object.values(parts).filter(p=>p.info&&p.meshes.some(m=>m.visible)&&sysOn[p.sys]&&p.r>0.012&&!['tooth','disk','costal'].includes(p.key));
 const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 function setMode(m){
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
@@ -938,7 +1018,7 @@ function loop(){
   controls.update(); renderer.render(scene,camera);
 }
 loop();
-load().then(()=>{ buildList(); updateVisibility(); paint(); openHash(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
+load().then(()=>{ buildRegions(); buildList(); updateVisibility(); paint(); openHash(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
 </script>
 </body>
 </html>
