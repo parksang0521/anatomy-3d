@@ -112,7 +112,7 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 }
 #panelBtn{display:none}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"}}</script>
 </head>
 <body>
 <div id="app">
@@ -148,6 +148,8 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+THREE.BufferGeometry.prototype.computeBoundsTree=computeBoundsTree; THREE.Mesh.prototype.raycast=acceleratedRaycast;
 
 const D = await (await fetch('data.json')).json();
 const ITEMS = D.items, LM = D.lm, MS = D.meshes, TYPES = D.types;
@@ -158,7 +160,7 @@ const short = n=>n.replace(/\s*\(.*?\)\s*/g,'').trim();
 
 /* ---------- three ---------- */
 const cv=$('#cv'), main=$('#main');
-const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true}); ren.setPixelRatio(Math.min(devicePixelRatio,2)); ren.localClippingEnabled=true;
+const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true}); ren.setPixelRatio(Math.min(devicePixelRatio,1.75)); ren.localClippingEnabled=true;
 ren.setClearColor(0x0b0f1a);
 const scene=new THREE.Scene();
 const cam=new THREE.PerspectiveCamera(30,1,1,6000); cam.up.set(0,0,1);
@@ -180,7 +182,7 @@ async function geom(id){
   for(let i=0;i<c.vc;i++){pos[i*3]=c.lo[0]+q[i*3]*c.sc[0];pos[i*3+1]=c.lo[1]+q[i*3+1]*c.sc[1];pos[i*3+2]=c.lo[2]+q[i*3+2]*c.sc[2];}
   const off=c.vc*6; const idx=c.i32?new Uint32Array(ab.slice(off)):new Uint16Array(ab.slice(off));
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx,1));
-  g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere();
+  g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); g.computeBoundsTree();
   return geoCache[id]=g;
 }
 const PALETTE=[0xe9dfc8,0xdccfae,0xe8d6b9,0xd9cdb8,0xefe3cc,0xd4c6a6,0xe3d2c0,0xcfc4ad];
@@ -190,7 +192,7 @@ function boneMat(col){return new THREE.MeshStandardMaterial({color:col,roughness
 /* ---------- state ---------- */
 const S={item:null,side:'R',sel:null,labels:'on',typeF:'all',tab:'info',quiz:null,preset:null,colorBones:false};
 let meshes=[], pins=[], box=new THREE.Box3(), dirty=true, center=new THREE.Vector3(), radius=100, mirror=1;
-const raycaster=new THREE.Raycaster();
+const raycaster=new THREE.Raycaster(); raycaster.firstHitOnly=false;
 
 function variant(){const it=S.item; return it.var[S.side]||it.var['']||Object.values(it.var)[0];}
 function sideOf(it){return it.var.R?(it.var[S.side]?S.side:'R'):'';}
@@ -289,18 +291,19 @@ function skullPreset(p){
 }
 
 /* labels / occlusion */
-let lastOcc=0;
+let lastOcc=0, occDirty=true;
 function updateLabels(now){
   const r=main.getBoundingClientRect(); const W=r.width,H=r.height;
-  const doOcc=now-lastOcc>120; if(doOcc) lastOcc=now;
+  const doOcc=occDirty&&now-lastOcc>100; if(doOcc){ lastOcc=now; occDirty=false; } const visMeshes=meshes.filter(m=>m.visible);
   const placed=[]; const showAll=S.labels==='on';
   const camPos=cam.position;
   const order=pins.map((p,i)=>i).sort((a,b)=>(pins[b].k===S.sel)-(pins[a].k===S.sel)||(pins[b].t==='f')-(pins[a].t==='f'));
   for(const i of order){ const p=pins[i];
     if(!p.mesh.visible){p.el.style.display='none';continue;}
-    if(doOcc){ const dir=p.pos.clone().sub(camPos); const d=dir.length(); dir.normalize(); raycaster.set(camPos,dir); raycaster.far=d-Math.max(1.5,radius*0.02);
-      const hits=raycaster.intersectObjects(meshes.filter(m=>m.visible),false); p.occ=hits.some(h=>!clipped(h.point)); p.mesh.material.opacity=1; }
     const v=p.pos.clone().project(cam); const x=(v.x+1)/2*W, y=(1-v.y)/2*H;
+    if(doOcc){ if(v.z>=1||x<-60||x>W+60||y<-30||y>H+30){p.occ=true;} else {
+      const dir=p.pos.clone().sub(camPos); const d=dir.length(); dir.normalize(); raycaster.set(camPos,dir); raycaster.far=d-Math.max(1.5,radius*0.02);
+      raycaster.firstHitOnly=S.preset!=='int'; const hits=raycaster.intersectObjects(visMeshes,false); p.occ=hits.some(h=>!clipped(h.point)); } }
     const isSel=p.k===S.sel, isQ=S.quiz&&S.quiz.target===p.k;
     let show=(!p.occ||(isSel&&p.i===S.selPin)) && v.z<1 && x>-50&&x<W+50&&y>-20&&y<H+20;
     if(S.quiz && (S.quiz.mode==='name'||S.quiz.mode==='find'||S.quiz.mode==='lr')) { if(!(isQ&&S.quiz.mode==='name')) show=false; }
@@ -496,7 +499,9 @@ ctl.addEventListener('change',()=>{dirty=true;});
 function loop(now){ requestAnimationFrame(loop); stepAnim(now); ctl.update();
   key.position.copy(cam.position).add(cam.up.clone().multiplyScalar(radius*2)); key.target.position.copy(ctl.target);
   fill.position.copy(ctl.target).sub(cam.position.clone().sub(ctl.target)).add(new THREE.Vector3(0,0,-radius));
-  if(dirty||anim){ ren.render(scene,cam); updateLabels(now); dirty=false; } else if(now-lastOcc>300){ updateLabels(now); } }
+  if(dirty||anim){ ren.render(scene,cam); occDirty=true; updateLabels(now); dirty=false; idlePending=true; }
+  else if(idlePending && now-lastOcc>150){ occDirty=true; updateLabels(now); idlePending=occDirty; } }
+let idlePending=false;
 resize();
 if(!(await fromHash())) await loadItem('skull');
 requestAnimationFrame(loop);
