@@ -148,7 +148,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
     <header>
       <button id="sideClose" title="목록 접기">⟨ 접기</button>
       <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
-      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다<br>신경·근육·혈관은 아래 목록에서 켜세요</div>
+      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
     </header>
     <div id="sideScroll">
@@ -173,7 +173,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
   </aside>
   <main id="stage">
     <canvas id="c"></canvas>
-    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">약 6MB · 신경·근육·혈관은 켤 때 따로 불러와요</small></div></div>
+    <div id="loading"><div class="box"><div id="ldText">3D 모델 불러오는 중…</div><div class="track"><div class="fill" id="ldFill"></div></div><small id="ldSub">전체 모델 약 12MB · 처음 한 번만 오래 걸려요</small></div></div>
     <div class="bar" id="modeBar">
       <div class="seg" id="menuBtn"><button id="menuToggle">☰ 목록</button></div>
       <div class="seg"><button data-mode="explore" class="on">탐색</button><button data-mode="quiz">퀴즈</button></div>
@@ -723,7 +723,7 @@ async function loadFiles(files,onBytes){
 async function load(){
   MAN=await (await fetch(SEX==='female'?'models/manifest_f.json':'models/manifest.json')).json();
   for(const p of MAN.parts){ if(p.sys==='skin') continue; parts[p.id]={...p,info:INFO[p.key]||null,meshes:[],grp:p.grp||'기타'}; }
-  const first=Object.keys(MAN.files).filter(f=>!SYSTEMS[sysOfFile(f)]?.lazy);
+  const first=Object.keys(MAN.files);
   const total=first.reduce((a,f)=>a+MAN.files[f],0); let got=0;
   const bufs=await loadFiles(first,n=>{ got+=n; ldFill.style.width=(got/total*100).toFixed(1)+'%'; ldText.textContent=`3D 모델 불러오는 중… ${(got/1e6).toFixed(1)} / ${(total/1e6).toFixed(1)} MB`; });
   ldText.textContent='모델 조립 중…';
@@ -745,7 +745,7 @@ async function switchSex(sex,{keepHash=false}={}){
   for(const s in groups){ const g=groups[s]; while(g.children.length){ const m=g.children.pop(); m.geometry.dispose(); m.material.dispose(); } }
   while(skinG.children.length){ skinG.children.pop().geometry.dispose(); }
   pickables.length=0; for(const k in parts) delete parts[k]; loaded={}; loading={}; chipL.style.display='none';
-  for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
+  for(const s in SYSTEMS) sysOn[s]=true;
   SEX=sex; document.querySelectorAll('[data-sex]').forEach(b=>b.classList.toggle('on',b.dataset.sex===sex));
   document.getElementById('sexNote').style.display=sex==='female'?'block':'none';
   document.getElementById('foot').innerHTML = sex==='female'
@@ -774,7 +774,7 @@ async function ensureSys(s){
 }
 
 /* ---------------- 상태 ---------------- */
-const sysOn={}; for(const s in SYSTEMS) sysOn[s]=!SYSTEMS[s].lazy;
+const sysOn={}; for(const s in SYSTEMS) sysOn[s]=true;
 let selId=null, hoverId=null, isoId=null, xray=false; const sysOp={};
 const quiz={on:false,type:'name',target:null,answered:false,score:0,total:0};
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
@@ -788,7 +788,7 @@ function updateVisibility(){
   document.querySelectorAll('details.sys').forEach(d=>{ const n=[...d.querySelectorAll('.item')].filter(b=>!b.classList.contains('rhide')).length; const c=d.querySelector('.cnt'); if(c) c.textContent=(c.textContent.includes('⤓')?'⤓ ':'')+n; });
   document.querySelectorAll('.reg').forEach(e=>e.classList.toggle('on',!!regionOn[e.dataset.r]));
   const chip=document.getElementById('isoChip'); chip.style.display=isoId?'flex':'none';
-  if(isoId) document.getElementById('isoName').textContent=`'${parts[isoId].ko}'만 보는 중`;
+  if(isoId) document.getElementById('isoName').textContent=`'${enName(parts[isoId])}'만 보는 중`;
 }
 function setOp(m,o){ const t=o<1; if(m.material.transparent!==t) m.material.needsUpdate=true; m.material.transparent=t; m.material.opacity=o; m.material.depthWrite=!t; }
 function applyOpacity(ghostId=null){
@@ -825,6 +825,7 @@ document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ const v=b.da
 
 /* ---------------- 정보 패널 ---------------- */
 const info=document.getElementById('info');
+const sortKey=p=>{ const e=enName(p); const m=e.match(/^(Left|Right) (.*)$/i); return m?m[2]+' '+m[1]:e; };
 const enName=p=>{ const e=p.en.replace(/^Female /,''); return e.charAt(0).toUpperCase()+e.slice(1); };
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function select(id,{focus=false}={}){
@@ -857,7 +858,7 @@ const list=document.getElementById('list');
 function buildList(){
   list.innerHTML='';
   for(const s in SYSTEMS){
-    const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>a.ko.localeCompare(b.ko,'ko'));
+    const S=SYSTEMS[s], ps=Object.values(parts).filter(p=>p.sys===s).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'en',{numeric:true}));
     if(!ps.length) continue;
     const d=document.createElement('details'); d.className='sys'; d.dataset.sys=s;
     d.innerHTML=`<summary title="${S.lazy?'켜면 불러옵니다 ('+(MAN.files[fileOf(s)]/1e6).toFixed(1)+'MB)':''}"><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" ${sysOn[s]?'checked':''}><span></span></label>
@@ -865,7 +866,7 @@ function buildList(){
     d.querySelector('input').onchange=e=>{ sysOn[s]=e.target.checked; if(sysOn[s]) ensureSys(s); updateVisibility(); };
     d.querySelector('.opbtn').onclick=e=>{ e.preventDefault(); e.stopPropagation(); const seq=[1,0.45,0.15]; sysOp[s]=seq[(seq.indexOf(sysOp[s]??1)+1)%3]; e.target.textContent=Math.round(sysOp[s]*100)+'%'; applyOpacity(); };
     const mk=p=>{ const b=document.createElement('button'); b.className='item'; b.dataset.id=p.id; b.dataset.q=(p.ko+' '+(p.old||'')+' '+p.en).toLowerCase();
-      b.innerHTML=`${esc(p.ko)}<small>${esc(p.en)}</small>`;
+      b.innerHTML=`${esc(enName(p))}<small>${esc(p.ko)}</small>`;
       b.onclick=async()=>{ if(!sysOn[p.sys]){ sysOn[p.sys]=true; d.querySelector('input').checked=true; updateVisibility(); } await ensureSys(p.sys); select(p.id,{focus:true}); side.classList.remove('open'); }; return b; };
     const gm={}; ps.forEach(p=>(gm[p.grp]||=[]).push(p));
     const keys=Object.keys(gm).sort((a,b)=>(GROUP_ORDER.indexOf(a)+1||99)-(GROUP_ORDER.indexOf(b)+1||99));
@@ -1003,21 +1004,21 @@ function nextQ(){
     qprompt.innerHTML='<b>깜빡이는</b> 구조물의 이름은?';
     const used=new Set([t.ko]); const cands=[...shuffle(P.filter(p=>p.grp===t.grp)),...shuffle(P.filter(p=>p.sys===t.sys)),...shuffle(P)];
     const opts=[t]; for(const c of cands){ if(opts.length>=4) break; if(!used.has(c.ko)){ used.add(c.ko); opts.push(c); } }
-    qopts.innerHTML=''; shuffle(opts).forEach(o=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=o.ko; b.dataset.id=o.id; b.onclick=()=>answerName(o,b); qopts.appendChild(b); });
+    qopts.innerHTML=''; shuffle(opts).forEach(o=>{ const b=document.createElement('button'); b.className='opt'; b.innerHTML=`${esc(enName(o))}<small style="color:var(--muted);margin-left:8px;font-size:12px">${esc(o.ko)}</small>`; b.dataset.id=o.id; b.onclick=()=>answerName(o,b); qopts.appendChild(b); });
     focusPart(t,4);
   } else {
-    qprompt.innerHTML=`3D 모델에서 <b>${esc(t.ko)}</b>${t.old?` <span style="color:var(--muted)">(${esc(t.old)})</span>`:''}을(를) 클릭하세요.`;
+    qprompt.innerHTML=`3D 모델에서 다음 구조물을 클릭하세요.<br><b>${esc(enName(t))}</b> <span style="color:var(--muted);font-size:13px">${esc(t.ko)}${t.old&&t.old!==t.ko?' · '+esc(t.old):''}</span>`;
     qopts.innerHTML=''; flyTo(HOME.t,HOME.p);
   }
 }
 function reveal(ok,extra=''){
   quiz.answered=true; quiz.total++; if(ok) quiz.score++; updScore();
   const t=quiz.target; selId=t.id; paint(); applyOpacity();
-  qfb.innerHTML=`${ok?'<span class="good">정답!</span>':'<span class="bad">오답</span>'} ${extra}<br><b>${esc(t.ko)}</b> · ${esc(t.en)}<br><span style="color:var(--muted)">${esc(t.info?.desc||'')}</span>`;
+  qfb.innerHTML=`${ok?'<span class="good">정답!</span>':'<span class="bad">오답</span>'} ${extra}<br><b>${esc(enName(t))}</b> · <span style="color:var(--muted)">${esc(t.ko)}</span><br><span style="color:var(--muted)">${esc(t.info?.desc||'')}</span>`;
 }
 function answerName(o,b){ if(quiz.answered) return; const ok=o.id===quiz.target.id;
   [...qopts.children].forEach(x=>{ x.disabled=true; if(x.dataset.id===quiz.target.id) x.classList.add('ok'); }); if(!ok) b.classList.add('no'); reveal(ok); }
-function answerLocate(id){ if(quiz.answered) return; const ok=id===quiz.target.id; reveal(ok, ok?'':`클릭한 곳은 '${esc(parts[id].ko)}'예요.`); focusPart(quiz.target); }
+function answerLocate(id){ if(quiz.answered) return; const ok=id===quiz.target.id; reveal(ok, ok?'':`클릭한 곳은 '${esc(enName(parts[id]))}'예요.`); focusPart(quiz.target); }
 
 /* ---------------- 루프 ---------------- */
 function resize(){ const w=canvas.clientWidth, h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
