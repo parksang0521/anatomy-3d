@@ -3,53 +3,75 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>골학 3D — 뼈 랜드마크·구멍 학습</title>
+<title>Osteology 3D · 골학 3D</title>
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <meta name="theme-color" content="#0b0f1a">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0f1a;--panel:rgba(16,21,34,.92);--line:rgba(148,163,184,.16);--text:#e7ebf3;--muted:#8e9ab0;--acc:#f5b94a;--acc2:#38bdf8;--ok:#34d399;--bad:#f87171;--bone:#e9dfc8}
+:root{--bg:#0b0f1a;--panel:rgba(16,21,34,.92);--line:rgba(148,163,184,.16);--text:#e7ebf3;--muted:#8e9ab0;--acc:#f5b94a;--acc2:#38bdf8;--ok:#34d399;--bad:#f87171}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+.ko{display:block;font-size:11px;color:var(--muted);font-weight:400;line-height:1.35}
 #app{display:flex;height:100vh;height:100dvh}
-/* sidebar */
-#side{width:268px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:6}
+#side{width:276px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:6}
 #side header{padding:16px 16px 10px;border-bottom:1px solid var(--line)}
-#side h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+#side h1{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em}
 #side h1 b{color:var(--acc)}
 #side .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
 #side .sub a{color:var(--acc2);text-decoration:none}
 #q{margin-top:10px;width:100%;padding:8px 11px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);font:inherit;font-size:13px;outline:none}
 #q:focus{border-color:var(--acc)}
-#list{flex:1;overflow:auto;padding:4px 0 20px}
-.grp{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;padding:12px 16px 4px}
-.it{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 16px;font-size:13.5px;color:#d5dbe6;border-left:3px solid transparent}
+#list{flex:1;overflow:auto;padding:6px 0 24px}
+.home{display:flex;align-items:center;gap:10px;width:calc(100% - 20px);margin:4px 10px 8px;padding:10px 12px;border-radius:11px;border:1px solid var(--line);text-align:left;font-weight:700;font-size:14px}
+.home.on{border-color:var(--acc);background:rgba(245,185,74,.1)}
+.home .ic{font-size:20px}
+.cat{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 16px;border-top:1px solid var(--line)}
+.cat:hover{background:rgba(255,255,255,.035)}
+.cat .t{font-size:15.5px;font-weight:700;line-height:1.2}
+.cat .chev{margin-left:auto;color:var(--muted);transition:.2s;font-size:12px}
+.cat.open .chev{transform:rotate(90deg)}
+.cat.cur .t{color:var(--acc)}
+.subwrap{display:none;padding:0 0 8px}
+.subwrap.open{display:block}
+.subh{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 16px 7px 26px;font-size:13.5px;font-weight:500;color:#dbe2ec}
+.subh:hover{background:rgba(255,255,255,.035)}
+.subh .chev{margin-left:auto;color:var(--muted);font-size:10px;transition:.2s}
+.subh.open .chev{transform:rotate(90deg)}
+.subh .ko{display:inline;margin-left:6px}
+.items{display:none;padding:2px 0 6px}
+.items.open{display:block}
+.it{display:block;width:100%;text-align:left;padding:5px 16px 5px 40px;font-size:13.5px;color:#d5dbe6;border-left:3px solid transparent;line-height:1.3}
 .it:hover{background:rgba(255,255,255,.04)}
 .it.on{border-left-color:var(--acc);background:rgba(245,185,74,.09);color:#fff}
-.it small{color:var(--muted);font-size:11px;margin-left:auto}
-.hit{display:block;width:100%;text-align:left;padding:5px 16px 5px 28px;font-size:12.5px;color:#cbd3df}
-.hit:hover{background:rgba(255,255,255,.05)} .hit i{font-style:normal;color:var(--muted);font-size:11px}
-/* main */
+.it .ko{display:inline;margin-left:6px}
+.grp{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;padding:12px 16px 4px}
+.hit{display:block;width:100%;text-align:left;padding:5px 16px 5px 24px;font-size:13px;color:#e2e8f0;line-height:1.35}
+.hit:hover{background:rgba(255,255,255,.05)}
 #main{flex:1;position:relative;min-width:0}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.lb{position:absolute;transform:translate(8px,-50%);white-space:nowrap;font-size:11.5px;padding:1px 6px;border-radius:5px;background:rgba(10,14,24,.78);color:#f3f4f6;border:1px solid rgba(255,255,255,.12);pointer-events:auto;cursor:pointer;line-height:1.5}
-.lb.f{border-color:rgba(56,189,248,.55);color:#bae6fd}
-.lb.sel{background:var(--acc);color:#1a1205;border-color:var(--acc);font-weight:700;z-index:3}
+.lb{position:absolute;transform:translate(8px,-50%);white-space:nowrap;font-size:12px;font-weight:600;padding:2px 7px 2px;border-radius:6px;background:rgba(10,14,24,.8);color:#f3f4f6;border:1px solid rgba(255,255,255,.12);pointer-events:auto;cursor:pointer;line-height:1.25}
+.lb small{display:block;font-size:10px;font-weight:400;color:#aab4c4}
+.lb.f{border-color:rgba(56,189,248,.6);color:#bae6fd}
+.lb.sel{background:var(--acc);color:#1a1205;border-color:var(--acc);z-index:3}
+.lb.sel small{color:#4a3510}
 .lb.q{background:#7c3aed;color:#fff;border-color:#a78bfa}
+#tipBox{position:absolute;pointer-events:none;background:rgba(10,14,24,.9);border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-size:12.5px;font-weight:600;display:none;z-index:5;white-space:nowrap}
+#tipBox small{display:block;font-size:10.5px;color:var(--muted);font-weight:400}
 #top{position:absolute;left:12px;right:12px;top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;pointer-events:none;z-index:4}
 #top>*{pointer-events:auto}
-#ttl{font-size:18px;font-weight:700;text-shadow:0 1px 8px #000;margin-right:6px}
-#ttl small{display:block;font-size:11.5px;font-weight:400;color:var(--muted)}
+#ttl{font-size:19px;font-weight:700;text-shadow:0 1px 8px #000;margin-right:6px;line-height:1.2}
+#ttl small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+#ttl .sd{color:var(--acc);font-size:15px}
 .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{padding:6px 10px;font-size:12.5px;color:#cfd6e2;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--acc);color:#1a1205;font-weight:700}
 .seg button:hover:not(.on){background:rgba(255,255,255,.06)}
-#menuBtn{display:none}
-/* right panel */
+#backBtn button{color:var(--acc);font-weight:700}
+#menuBtn,#panelBtn{display:none}
 #panel{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;z-index:5}
 #tabs{display:flex;border-bottom:1px solid var(--line)}
 #tabs button{flex:1;padding:11px 4px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
@@ -59,31 +81,31 @@ button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
 .card h3{margin:0 0 4px;font-size:13px;color:var(--acc)}
 .card p{margin:0}
 .lmg{margin:10px 0 2px;font-size:11.5px;color:var(--muted);font-weight:700}
-.lmi{display:flex;gap:6px;align-items:baseline;width:100%;text-align:left;padding:4px 6px;border-radius:7px;font-size:13px;color:#dbe1ea}
+.lmi{display:flex;gap:7px;align-items:baseline;width:100%;text-align:left;padding:4px 6px;border-radius:7px;font-size:13px;color:#e2e8f0;line-height:1.3}
 .lmi:hover{background:rgba(255,255,255,.05)} .lmi.on{background:rgba(245,185,74,.15);color:#fff}
-.lmi i{font-style:normal;font-size:11px;color:var(--muted)}
 .dot{width:7px;height:7px;border-radius:50%;flex:none;background:#fca5a5;transform:translateY(-1px)}
 .dot.f{background:var(--acc2)}
 table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 .ft td,.ft th{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top;text-align:left}
 .ft th{color:var(--muted);font-weight:500;font-size:11.5px}
 .ft tr{cursor:pointer} .ft tr:hover td{background:rgba(255,255,255,.04)}
-.ft td:first-child{color:#bae6fd;white-space:nowrap;font-weight:500}
-/* info card on viewport */
-#info{position:absolute;left:12px;bottom:12px;width:min(420px,calc(100% - 24px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px;z-index:4;display:none;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.ft td:first-child{color:#bae6fd;font-weight:600;width:42%}
+.catbtn{display:block;width:100%;text-align:left;padding:9px 12px;margin:6px 0;border:1px solid var(--line);border-radius:10px;font-weight:700}
+.catbtn:hover{border-color:var(--acc)}
+#info{position:absolute;left:12px;bottom:12px;width:min(430px,calc(100% - 24px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px;z-index:4;display:none;box-shadow:0 10px 40px rgba(0,0,0,.45);max-height:60%;overflow:auto}
 #info .x{position:absolute;right:8px;top:6px;font-size:18px;color:var(--muted);padding:4px 8px}
-#info .nm{font-size:17px;font-weight:700;padding-right:26px}
-#info .alt{font-size:12.5px;color:var(--muted);margin:2px 0 8px}
-#info .tp{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.08);color:#cbd5e1;margin-left:6px;vertical-align:2px;font-weight:500}
+#info .nm{font-size:18px;font-weight:700;padding-right:26px;line-height:1.25}
+#info .alt{font-size:12.5px;color:var(--muted);margin:3px 0 8px}
+#info .tp{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.08);color:#cbd5e1;margin-left:6px;vertical-align:3px;font-weight:500}
 #info .row{font-size:13px;line-height:1.6;margin-top:6px}
 #info .row b{color:var(--acc);font-weight:500;margin-right:4px}
 #info .row.pass b{color:var(--acc2)}
 #info .row.c b{color:#f9a8d4}
-#chip{position:absolute;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12.5px;display:none;z-index:4}
-#chip button{color:var(--acc2);margin-left:8px}
-#load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:13px;z-index:3}
-/* quiz */
-.qbtn{display:block;width:100%;text-align:left;padding:9px 12px;margin:6px 0;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);font-size:13.5px}
+#info .acts{display:flex;gap:8px;margin-top:11px}
+#info .go{flex:1;padding:10px;border-radius:10px;background:var(--acc);color:#1a1205;font-weight:700;font-size:14px}
+#info .go2{padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px}
+#load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:13px;z-index:3;background:var(--panel);padding:10px 16px;border-radius:10px;border:1px solid var(--line)}
+.qbtn{display:block;width:100%;text-align:left;padding:8px 12px;margin:6px 0;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);font-size:13.5px;line-height:1.3}
 .qbtn:hover{border-color:var(--acc)}
 .qbtn.ok{border-color:var(--ok);background:rgba(52,211,153,.12)}
 .qbtn.no{border-color:var(--bad);background:rgba(248,113,113,.12)}
@@ -99,18 +121,17 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 .muted{color:var(--muted);font-size:12px}
 .note{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.6}
 @media (max-width:900px){
-  .seg button{padding:5px 7px;font-size:11.5px}
-  #top{gap:5px;top:6px;left:6px;right:6px}
-  .lb{font-size:10.5px}
   #panel{position:absolute;right:0;top:0;bottom:0;width:min(340px,92vw);transform:translateX(100%);transition:.25s}
   #panel.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.6)}
-  #side{position:absolute;left:0;top:0;bottom:0;width:min(280px,86vw);transform:translateX(-100%);transition:.25s}
+  #side{position:absolute;left:0;top:0;bottom:0;width:min(290px,86vw);transform:translateX(-100%);transition:.25s}
   #side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.6)}
   #menuBtn,#panelBtn{display:inline-flex!important}
-  #ttl{font-size:15px;width:100%;order:-1}
-  #info{bottom:8px;left:8px;width:calc(100% - 16px);max-height:46vh;overflow:auto}
+  #ttl{font-size:16px;width:100%;order:-1}
+  .seg button{padding:5px 7px;font-size:11.5px}
+  #top{gap:5px;top:6px;left:6px;right:6px}
+  .lb{font-size:11px}
+  #info{bottom:8px;left:8px;width:calc(100% - 16px);max-height:46vh}
 }
-#panelBtn{display:none}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"}}</script>
 </head>
@@ -118,17 +139,19 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 <div id="app">
   <aside id="side">
     <header>
-      <h1>골학 <b>3D</b></h1>
-      <div class="sub">뼈 하나씩 · 랜드마크 · 구멍과 통과 구조물 · <a href="../">← 전신 해부학 아틀라스</a></div>
-      <input id="q" type="search" placeholder="검색: 큰결절, 대결절, foramen ovale…" autocomplete="off">
+      <h1>Osteology <b>3D</b></h1>
+      <div class="sub">골학 · 뼈 구조물·구멍·통과 구조물 · <a href="../">← 해부학 아틀라스</a></div>
+      <input id="q" type="search" placeholder="검색: greater tubercle, 큰결절, 대결절…" autocomplete="off">
     </header>
     <div id="list"></div>
   </aside>
   <main id="main">
     <canvas id="cv"></canvas>
     <div id="labels"></div>
+    <div id="tipBox"></div>
     <div id="top">
       <div class="seg" id="menuBtn"><button onclick="document.getElementById('side').classList.toggle('open')">☰ 뼈</button></div>
+      <div class="seg" id="backBtn"><button>← 전신 뼈대</button></div>
       <div id="ttl"></div>
       <div class="seg" id="sideSeg"></div>
       <div class="seg" id="viewSeg"></div>
@@ -138,10 +161,9 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
     </div>
     <div id="load">불러오는 중…</div>
     <div id="info"></div>
-    <div id="chip"></div>
   </main>
   <aside id="panel">
-    <div id="tabs"><button data-t="info" class="on">정보</button><button data-t="lm">랜드마크</button><button data-t="for">구멍표</button><button data-t="quiz">퀴즈</button></div>
+    <div id="tabs"><button data-t="info" class="on">정보</button><button data-t="lm">구조물</button><button data-t="for">구멍표</button><button data-t="quiz">퀴즈</button></div>
     <div id="pbody"></div>
   </aside>
 </div>
@@ -152,56 +174,102 @@ import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 THREE.BufferGeometry.prototype.computeBoundsTree=computeBoundsTree; THREE.Mesh.prototype.raycast=acceleratedRaycast;
 
 const D = await (await fetch('data.json')).json();
-const ITEMS = D.items, LM = D.lm, MS = D.meshes, TYPES = D.types;
-const byId = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
-const $ = s=>document.querySelector(s);
-const esc = s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const short = n=>n.replace(/\s*\(.*?\)\s*/g,'').trim();
+const ITEMS=D.items, LM=D.lm, MS=D.meshes, TYPES=D.types, OV=D.ov, NAV=D.nav;
+const byId=Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+const ovById=Object.fromEntries(OV.map(o=>[o.id,o]));
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const enS=l=>l.e.replace(/\s*\(.*?\)/g,'').split(' / ')[0].trim();
+const koS=l=>l.n.replace(/\s*\(.*?\)\s*/g,'').trim();
+const TYPES_EN={f:'Foramen · canal',p:'Process · eminence',s:'Surface · fossa · groove',l:'Line · border',j:'Articular surface',x:'Landmark point',b:'Part'};
+const itemKo=it=>it.ko.split('  ·  ')[0];
 
 /* ---------- three ---------- */
 const cv=$('#cv'), main=$('#main');
 const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true}); ren.setPixelRatio(Math.min(devicePixelRatio,1.75)); ren.localClippingEnabled=true;
 ren.setClearColor(0x0b0f1a);
 const scene=new THREE.Scene();
-const cam=new THREE.PerspectiveCamera(30,1,1,6000); cam.up.set(0,0,1);
+const cam=new THREE.PerspectiveCamera(30,1,1,12000); cam.up.set(0,0,1);
 const ctl=new OrbitControls(cam,cv); ctl.enableDamping=true; ctl.dampingFactor=.12; ctl.rotateSpeed=.8;
 scene.add(new THREE.HemisphereLight(0xffffff,0x3a3020,1.1));
 const key=new THREE.DirectionalLight(0xffffff,1.5); scene.add(key); scene.add(key.target);
 const fill=new THREE.DirectionalLight(0xbcd4ff,.5); scene.add(fill);
 const root=new THREE.Group(); scene.add(root);
+const ovRoot=new THREE.Group(); scene.add(ovRoot);
 const pinG=new THREE.Group(); scene.add(pinG);
+let dirty=true;
 function resize(){const r=main.getBoundingClientRect(); ren.setSize(r.width,r.height,false); cam.aspect=r.width/Math.max(1,r.height); cam.updateProjectionMatrix(); dirty=true;}
 addEventListener('resize',resize);
-
-const geoCache={};
-async function geom(id){
-  if(geoCache[id]) return geoCache[id];
-  const c=MS[id]; const r=await fetch('m/'+id+'.bin.gz');
-  const ab=await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
-  const q=new Uint16Array(ab,0,c.vc*3), pos=new Float32Array(c.vc*3);
-  for(let i=0;i<c.vc;i++){pos[i*3]=c.lo[0]+q[i*3]*c.sc[0];pos[i*3+1]=c.lo[1]+q[i*3+1]*c.sc[1];pos[i*3+2]=c.lo[2]+q[i*3+2]*c.sc[2];}
-  const off=c.vc*6; const idx=c.i32?new Uint32Array(ab.slice(off)):new Uint16Array(ab.slice(off));
-  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx,1));
-  g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); g.computeBoundsTree();
-  return geoCache[id]=g;
-}
-const PALETTE=[0xe9dfc8,0xdccfae,0xe8d6b9,0xd9cdb8,0xefe3cc,0xd4c6a6,0xe3d2c0,0xcfc4ad];
 const clipPlane=new THREE.Plane(new THREE.Vector3(0,0,-1),1e5);
+const PALETTE=[0xe9dfc8,0xdccfae,0xe8d6b9,0xd9cdb8,0xefe3cc,0xd4c6a6,0xe3d2c0,0xcfc4ad];
 function boneMat(col){return new THREE.MeshStandardMaterial({color:col,roughness:.72,metalness:0,clippingPlanes:[clipPlane],side:THREE.DoubleSide});}
+async function gunzip(url){const r=await fetch(url); return await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}
+function mkGeo(ab,vo,vc,io,ic,lo,sc,i32){
+  const q=new Uint16Array(ab,vo,vc*3), pos=new Float32Array(vc*3);
+  for(let i=0;i<vc;i++){pos[i*3]=lo[0]+q[i*3]*sc[0];pos[i*3+1]=lo[1]+q[i*3+1]*sc[1];pos[i*3+2]=lo[2]+q[i*3+2]*sc[2];}
+  const idx=i32?new Uint32Array(ab.slice(io,io+ic*4)):new Uint16Array(ab.slice(io,io+ic*2));
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx,1));
+  g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); g.computeBoundsTree(); return g;
+}
+const geoCache={};
+async function geom(id){ if(geoCache[id]) return geoCache[id]; const c=MS[id]; const ab=await gunzip('m/'+id+'.bin.gz');
+  return geoCache[id]=mkGeo(ab,0,c.vc,c.vc*6,c.ic,c.lo,c.sc,c.i32); }
 
 /* ---------- state ---------- */
-const S={item:null,side:'R',sel:null,labels:'on',typeF:'all',tab:'info',quiz:null,preset:null,colorBones:false};
-let meshes=[], pins=[], box=new THREE.Box3(), dirty=true, center=new THREE.Vector3(), radius=100, mirror=1;
-const raycaster=new THREE.Raycaster(); raycaster.firstHitOnly=false;
-
+const S={mode:'overview',item:null,side:'R',sel:null,selPin:null,labels:'on',typeF:'all',tab:'info',quiz:null,preset:null,colorBones:false,ovSel:null,open:{}};
+let meshes=[], pins=[], box=new THREE.Box3(), center=new THREE.Vector3(), radius=100, ovMeshes=[], ovLoaded=false;
+const raycaster=new THREE.Raycaster();
 function variant(){const it=S.item; return it.var[S.side]||it.var['']||Object.values(it.var)[0];}
-function sideOf(it){return it.var.R?(it.var[S.side]?S.side:'R'):'';}
 
+/* ---------- 전신 뼈대 ---------- */
+async function loadOverviewMeshes(){
+  if(ovLoaded) return; const ab=await gunzip('m/_skeleton.bin.gz');
+  for(const o of OV){ const g=mkGeo(ab,o.vo,o.vc,o.io,o.ic,o.lo,o.sc,false);
+    const cart=o.id.includes('cartilage'), tooth=o.id.includes('tooth');
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:cart?0x9fb6c9:(tooth?0xf4f1e6:0xe6dcc4),roughness:.75,side:THREE.DoubleSide}));
+    m.userData.ov=o; ovRoot.add(m); ovMeshes.push(m); }
+  ovLoaded=true;
+}
+let ovCenter=new THREE.Vector3(), ovRadius=900, ovH=1700;
+async function enterOverview(keepCam){
+  S.mode='overview'; S.item=null; S.quiz=null; S.sel=null; S.preset=null; clipPlane.constant=1e5;
+  root.visible=false; pinG.visible=false; ovRoot.visible=true; $('#labels').innerHTML=''; pins=[]; hideInfo();
+  $('#load').style.display='block'; $('#load').textContent='전신 뼈대 불러오는 중… (약 1MB)';
+  await loadOverviewMeshes(); $('#load').style.display='none';
+  const bx=new THREE.Box3().setFromObject(ovRoot); bx.getCenter(ovCenter); ovRadius=bx.getSize(new THREE.Vector3()).length()/2; ovH=bx.max.z-bx.min.z;
+  center.copy(ovCenter); radius=ovRadius;
+  if(S.ovSel){ hlOv(S.ovSel,false); S.ovSel=null; }
+  if(!keepCam) setView('ant');
+  renderList(); renderTop(); renderPanel(); setHash(); dirty=true;
+}
+function hlOv(m,on){ m.material.emissive=new THREE.Color(on?0x6a3f00:0x000000); dirty=true; }
+function ovItem(o){ const [id,sd]=o.it; return {it:byId[id],sd}; }
+function selectOv(m){
+  if(S.ovSel) hlOv(S.ovSel,false); S.ovSel=m; hlOv(m,true);
+  const o=m.userData.ov; const {it,sd}=ovItem(o);
+  const bb=m.geometry.boundingBox; const c=bb.getCenter(new THREE.Vector3()); const sz=bb.getSize(new THREE.Vector3()).length();
+  const dir=cam.position.clone().sub(ctl.target).normalize();
+  const dist=Math.max(sz*1.6,110)/Math.tan(THREE.MathUtils.degToRad(cam.fov/2))*0.5;
+  animCam(c, c.clone().addScaledVector(dir,dist));
+  const el=$('#info'); const multi=Object.values(it.var)[0].meshes.length>1;
+  el.innerHTML=`<button class="x" id="infoX">×</button>
+    <div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}${multi?' · '+esc(it.en)+'에 포함':''}</div>
+    <div class="row">${esc((it.info&&it.info.d)||'')}</div>
+    <div class="acts"><button class="go" id="goBone">따로 보기 →</button>${it.var.R?`<button class="go2" id="goOther">${sd==='L'?'오른쪽':'왼쪽'} 것 보기</button>`:''}</div>`;
+  el.style.display='block';
+  $('#infoX').onclick=()=>{hideInfo(); if(S.ovSel){hlOv(S.ovSel,false); S.ovSel=null;}};
+  $('#goBone').onclick=()=>openItem(it.id,sd||null);
+  const go=$('#goOther'); if(go) go.onclick=()=>openItem(it.id,sd==='L'?'R':'L');
+}
+
+/* ---------- 뼈 따로 보기 ---------- */
+async function openItem(id,side){ $('#side').classList.remove('open'); await loadItem(id,side); }
 async function loadItem(id,side,keepView){
   const it=byId[id]; if(!it) return;
-  S.item=it; if(side) S.side=side; if(it.var.R && !it.var[S.side]) S.side='R';
-  S.sel=null; S.preset=null; clipPlane.constant=1e5; hideInfo(); $('#chip').style.display='none';
-  $('#load').style.display='block';
+  S.mode='bone'; S.item=it; if(side) S.side=side; if(it.var.R && !it.var[S.side]) S.side='R';
+  S.sel=null; S.preset=null; clipPlane.constant=1e5; hideInfo();
+  ovRoot.visible=false; root.visible=true; pinG.visible=true; $('#tipBox').style.display='none';
+  $('#load').style.display='block'; $('#load').textContent='불러오는 중…';
   const v=variant();
   const gs=await Promise.all(v.meshes.map(geom));
   root.clear(); meshes=[];
@@ -210,71 +278,62 @@ async function loadItem(id,side,keepView){
   box.makeEmpty(); gs.forEach(g=>box.union(g.boundingBox)); box.getCenter(center); radius=box.getSize(new THREE.Vector3()).length()/2;
   buildPins();
   $('#load').style.display='none';
+  NAV.forEach((c,ci)=>c.subs.forEach((s,si)=>{ if(s.items.includes(id)){ S.open['c'+ci]=true; S.open['s'+ci+'_'+si]=true; } }));
   renderList(); renderTop(); renderPanel();
-  if(!keepView) setView(defaultView(it));
-  else dirty=true;
+  if(!keepView) setView(defaultView(it)); else dirty=true;
   if(S.quiz && S.quiz.mode!=='lr') nextQuiz();
   setHash();
 }
-function defaultView(it){ if(['skull','frontal','maxilla','zygomatic','nasal','mandible','sternum','hyoid','patella','pelvis','spine','vomer','lacrimal','ethmoid','sphenoid'].includes(it.id)) return 'ant';
-  if(['occipital'].includes(it.id)) return 'inf'; if(S.item.kind&&['cervical','c7','thoracic','lumbar','atlas','axis'].includes(it.kind)) return 'sup';
-  if(['parietal','temporal'].includes(it.id)) return 'lat'; if(it.id.startsWith('rib')) return 'sup'; if(['hand','foot'].includes(it.id)) return it.id==='hand'?'ant':'sup'; return 'ant';}
+function defaultView(it){ if(it.id==='occipital') return 'inf';
+  if(['cervical','c7','thoracic','lumbar','atlas','axis'].includes(it.kind)) return 'sup';
+  if(['parietal','temporal'].includes(it.id)) return 'lat'; if(it.id.startsWith('rib')||it.id==='foot') return 'sup'; return 'ant';}
 
 /* pins */
 const pinGeo=new THREE.SphereGeometry(1,14,10);
+const pinR=()=>Math.max(0.9,radius*0.012);
+function labelHTML(L){return `${esc(enS(L))}<small>${esc(koS(L))}</small>`;}
 function buildPins(){
   pinG.clear(); pins=[];
-  const v=variant(); const r=Math.max(0.9,radius*0.012);
-  v.pts.forEach((p,i)=>{
+  variant().pts.forEach((p,i)=>{
     const [k,x,y,z,mid,sd,fl]=p; const L=LM[k]; if(!L) return;
-    const mat=new THREE.MeshBasicMaterial({color:L.t==='f'?0x38bdf8:0xf87171,depthTest:true});
-    const s=new THREE.Mesh(pinGeo,mat); s.position.set(x,y,z); s.scale.setScalar(r); s.userData={k,i};
-    pinG.add(s);
-    const el=document.createElement('div'); el.className='lb'+(L.t==='f'?' f':''); el.textContent=short(L.n); el.onclick=e=>{e.stopPropagation(); onPinClick(i);};
-    pins.push({k,i,pos:new THREE.Vector3(x,y,z),mesh:s,el,mid,sd,fl:fl||'',vis:true,t:L.t});
+    const s=new THREE.Mesh(pinGeo,new THREE.MeshBasicMaterial({color:L.t==='f'?0x38bdf8:0xf87171})); s.position.set(x,y,z); s.scale.setScalar(pinR()); s.userData={k,i}; pinG.add(s);
+    const el=document.createElement('div'); el.className='lb'+(L.t==='f'?' f':''); el.innerHTML=labelHTML(L); el.onclick=e=>{e.stopPropagation(); onPinClick(i);};
+    pins.push({k,i,pos:new THREE.Vector3(x,y,z),mesh:s,el,mid,sd,fl:fl||'',t:L.t,w:Math.max(enS(L).length*7,koS(L).length*10.5)+16});
   });
   const lab=$('#labels'); lab.innerHTML=''; pins.forEach(p=>lab.appendChild(p.el));
-  applyFilter(); dirty=true;
+  applyFilter();
 }
-function applyFilter(){
-  pins.forEach(p=>{const show=(S.typeF==='all'||(S.typeF==='f'?p.t==='f':p.t!=='f')); p.mesh.visible=show; p.filtered=!show;});
-  dirty=true;
-}
-function onPinClick(i){
-  if(S.quiz&&S.quiz.mode==='find'){quizAnswerFind(i);return;}
-  selectKey(pins[i].k,i);
-}
+function applyFilter(){ pins.forEach(p=>{p.filtered=!(S.typeF==='all'||(S.typeF==='f'?p.t==='f':p.t!=='f')); p.mesh.visible=!p.filtered&&!p.hiddenByPreset;}); occDirty=true; dirty=true; }
+function onPinClick(i){ if(S.quiz&&S.quiz.mode==='find'){quizAnswerFind(i);return;} selectKey(pins[i].k,i); }
 function selectKey(k,pi,fly=true){
   S.sel=k; const ps=pins.filter(p=>p.k===k&&p.mesh.visible);
   let p=pi!=null?pins[pi]:(ps.find(q=>!q.occ)||ps[0]||pins.find(q=>q.k===k)); if(!p){showInfo(k);return;} S.selPin=p.i;
-  pins.forEach(q=>{q.mesh.material.color.set(q.k===k?0xf5b94a:(q.t==='f'?0x38bdf8:0xf87171)); q.mesh.scale.setScalar(Math.max(0.9,radius*0.012)*(q.k===k?1.7:1)); q.mesh.material.depthTest=q.k!==k; q.mesh.renderOrder=q.k===k?5:0;});
+  pins.forEach(q=>{const on=q.k===k; q.mesh.material.color.set(on?0xf5b94a:(q.t==='f'?0x38bdf8:0xf87171)); q.mesh.scale.setScalar(pinR()*(on?1.7:1)); q.mesh.material.depthTest=!on; q.mesh.renderOrder=on?5:0;});
   if(fly) flyTo(p.pos);
-  showInfo(k); renderPanelSel(); setHash(); dirty=true;
+  showInfo(k); if(S.tab==='lm') renderPanel(); setHash(); dirty=true;
 }
 function flyTo(pt){
-  let cur=cam.position.clone().sub(ctl.target).normalize();
-  // 현재 방향에서 가려지면 바깥쪽(수평) 방향으로 돌린다
-  const testPos=pt.clone().addScaledVector(cur,radius*3);
-  raycaster.set(testPos,cur.clone().negate()); raycaster.far=radius*3-1;
+  const cur=cam.position.clone().sub(ctl.target).normalize();
+  raycaster.set(pt.clone().addScaledVector(cur,radius*3),cur.clone().negate()); raycaster.far=radius*3-1; raycaster.firstHitOnly=false;
   const occ=raycaster.intersectObjects(meshes.filter(m=>m.visible),false).some(h=>!clipped(h.point));
   let dir=cur;
-  if(occ){ const out=pt.clone().sub(center); if(radius>60) out.z=0; if(out.length()<1e-3) out.copy(cur); out.normalize();
-    dir=out; if(Math.abs(dir.z)<0.9) cam.up.set(0,0,1); }
+  if(occ){ const out=pt.clone().sub(center); if(radius>60) out.z=0; if(out.length()<1e-3) out.copy(cur); out.normalize(); dir=out; if(Math.abs(dir.z)<0.9) cam.up.set(0,0,1); }
   const dist=radius>80?radius*1.25:Math.min(Math.max(radius*1.1,45),radius*2.4);
   animCam(pt.clone(), pt.clone().addScaledVector(dir,dist*1.9));
 }
 let anim=null;
-function animCam(target,pos,ms=550){ anim={t0:performance.now(),ms,ft:ctl.target.clone(),fp:cam.position.clone(),tt:target,tp:pos}; }
+function animCam(target,pos,ms=600){ anim={t0:performance.now(),ms,ft:ctl.target.clone(),fp:cam.position.clone(),tt:target,tp:pos}; }
 function stepAnim(now){ if(!anim) return; let t=Math.min(1,(now-anim.t0)/anim.ms); t=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
   ctl.target.lerpVectors(anim.ft,anim.tt,t); cam.position.lerpVectors(anim.fp,anim.tp,t); if(t>=1) anim=null; dirty=true; }
 
 /* views */
-function viewDirs(){ const s=(S.item.var.R? (S.side==='L'?-1:1):1); // lateral dir for this side: right bone lateral = -x
-  return {ant:[0,-1,0],post:[0,1,0],lat:[-s,0,0],med:[s,0,0],sup:[0,0,1],inf:[0,0,-1]}; }
-const VIEWNAMES={ant:'앞',post:'뒤',lat:'가쪽',med:'안쪽',sup:'위',inf:'아래'};
-function setView(v){ const d=new THREE.Vector3(...viewDirs()[v]); const up=(v==='sup')?new THREE.Vector3(0,-1,0):(v==='inf'?new THREE.Vector3(0,-1,0):new THREE.Vector3(0,0,1));
-  cam.up.copy(up); const dist=radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.05;
-  ctl.target.copy(center); cam.position.copy(center).addScaledVector(d,dist); cam.lookAt(center); ctl.update(); S.view=v; renderTop(); dirty=true; }
+function viewDirs(){ const s=(S.item&&S.item.var.R&&S.side==='L')?-1:1;
+  return {ant:[0,-1,0],post:[0,1,0],lat:[-s,0,0],med:[s,0,0],sup:[0,0,1],inf:[0,0,-1],R:[-1,0,0],L:[1,0,0]}; }
+const VIEWNAMES={ant:'앞',post:'뒤',lat:'가쪽',med:'안쪽',sup:'위',inf:'아래',R:'오른쪽',L:'왼쪽'};
+function setView(v){ const d=new THREE.Vector3(...viewDirs()[v]); const up=(v==='sup'||v==='inf')?new THREE.Vector3(0,-1,0):new THREE.Vector3(0,0,1);
+  cam.up.copy(up); let dist=radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.18;
+  if(S.mode==='overview'){ const h=ovH/2/Math.tan(THREE.MathUtils.degToRad(cam.fov/2)); dist=h*1.08/Math.min(1,cam.aspect*1.9); }
+  anim=null; ctl.target.copy(center); cam.position.copy(center).addScaledVector(d,dist); cam.lookAt(center); ctl.update(); S.view=v; renderTop(); dirty=true; }
 function skullPreset(p){
   S.preset=S.preset===p?null:p;
   const nomand=S.preset==='ext';
@@ -284,85 +343,118 @@ function skullPreset(p){
     if(S.preset==='int'&&p.fl!=='i') p.hiddenByPreset=true;
     if(nomand&&!(p.fl==='e'||(p.fl!=='i'&&p.pos.z<1500&&p.mid!=='mandible'))) p.hiddenByPreset=true;
     p.mesh.visible=!p.filtered&&!p.hiddenByPreset;});
+  anim=null;
   if(S.preset==='int'){ cam.up.set(0,-1,0); ctl.target.set(0,-95,1520); cam.position.set(0,-95,1520+420); }
   else if(S.preset==='ext'){ cam.up.set(0,-1,0); ctl.target.set(0,-100,1500); cam.position.set(0,-100,1500-420); }
   else setView('ant');
-  ctl.update(); renderTop(); dirty=true;
+  ctl.update(); renderTop(); occDirty=true; dirty=true;
 }
 
 /* labels / occlusion */
 let lastOcc=0, occDirty=true;
+function clipped(pt){ return S.preset==='int' && pt.z>1535; }
 function updateLabels(now){
+  if(S.mode!=='bone') return;
   const r=main.getBoundingClientRect(); const W=r.width,H=r.height;
-  const doOcc=occDirty&&now-lastOcc>100; if(doOcc){ lastOcc=now; occDirty=false; } const visMeshes=meshes.filter(m=>m.visible);
-  const placed=[]; const showAll=S.labels==='on';
-  const camPos=cam.position;
+  const doOcc=occDirty&&now-lastOcc>100; if(doOcc){ lastOcc=now; occDirty=false; }
+  const vis=meshes.filter(m=>m.visible); const placed=[]; const camPos=cam.position;
   const order=pins.map((p,i)=>i).sort((a,b)=>(pins[b].k===S.sel)-(pins[a].k===S.sel)||(pins[b].t==='f')-(pins[a].t==='f'));
   for(const i of order){ const p=pins[i];
     if(!p.mesh.visible){p.el.style.display='none';continue;}
     const v=p.pos.clone().project(cam); const x=(v.x+1)/2*W, y=(1-v.y)/2*H;
-    if(doOcc){ if(v.z>=1||x<-60||x>W+60||y<-30||y>H+30){p.occ=true;} else {
+    if(doOcc){ if(v.z>=1||x<-60||x>W+60||y<-30||y>H+30) p.occ=true; else {
       const dir=p.pos.clone().sub(camPos); const d=dir.length(); dir.normalize(); raycaster.set(camPos,dir); raycaster.far=d-Math.max(1.5,radius*0.02);
-      raycaster.firstHitOnly=S.preset!=='int'; const hits=raycaster.intersectObjects(visMeshes,false); p.occ=hits.some(h=>!clipped(h.point)); } }
+      raycaster.firstHitOnly=S.preset!=='int'; p.occ=raycaster.intersectObjects(vis,false).some(h=>!clipped(h.point)); } }
     const isSel=p.k===S.sel, isQ=S.quiz&&S.quiz.target===p.k;
     let show=(!p.occ||(isSel&&p.i===S.selPin)) && v.z<1 && x>-50&&x<W+50&&y>-20&&y<H+20;
-    if(S.quiz && (S.quiz.mode==='name'||S.quiz.mode==='find'||S.quiz.mode==='lr')) { if(!(isQ&&S.quiz.mode==='name')) show=false; }
-    else if(!showAll && !isSel) show=false;
-    p.mesh.visible=!p.filtered&&!p.hiddenByPreset;
-    if(show && !isSel && !isQ){ const w=p.el.textContent.length*11.5+14; const rr=[x+6,y-10,x+6+w,y+10];
-      if(placed.some(q=>!(rr[2]<q[0]||rr[0]>q[2]||rr[3]<q[1]||rr[1]>q[3]))) show=false; else placed.push(rr); }
-    else if(show){ const w=p.el.textContent.length*12+14; placed.push([x+6,y-10,x+6+w,y+10]); }
+    if(S.quiz && ['name','find','lr'].includes(S.quiz.mode)) { if(!(isQ&&S.quiz.mode==='name')) show=false; }
+    else if(S.labels!=='on' && !isSel) show=false;
+    const rr=[x+6,y-16,x+6+p.w,y+16];
+    if(show && !isSel && !isQ){ if(placed.some(q=>!(rr[2]<q[0]||rr[0]>q[2]||rr[3]<q[1]||rr[1]>q[3]))) show=false; else placed.push(rr); }
+    else if(show) placed.push(rr);
     p.el.style.display=show?'block':'none';
-    if(show){ p.el.style.left=x+'px'; p.el.style.top=y+'px'; p.el.classList.toggle('sel',isSel); p.el.classList.toggle('q',!!(isQ&&S.quiz.mode==='name')); if(isQ&&S.quiz.mode==='name') p.el.textContent='?'; else if(p.el.textContent==='?') p.el.textContent=short(LM[p.k].n);}
+    if(show){ p.el.style.left=x+'px'; p.el.style.top=y+'px'; p.el.classList.toggle('sel',isSel);
+      const q=!!(isQ&&S.quiz.mode==='name'); p.el.classList.toggle('q',q);
+      if(q){ if(p.el.textContent!=='?') p.el.textContent='?'; } else if(p.el.textContent==='?') p.el.innerHTML=labelHTML(LM[p.k]); }
   }
 }
-function clipped(pt){ return S.preset==='int' && pt.z>1535; }
 
-/* picking on canvas */
+/* picking */
 let down=null;
 cv.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+function ndc(e){const r=cv.getBoundingClientRect(); return new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);}
 cv.addEventListener('pointerup',e=>{ if(!down) return; const moved=Math.hypot(e.clientX-down[0],e.clientY-down[1]); down=null; if(moved>5) return;
-  const r=cv.getBoundingClientRect(); const m=new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
-  raycaster.setFromCamera(m,cam); raycaster.far=Infinity;
+  raycaster.setFromCamera(ndc(e),cam); raycaster.far=Infinity; raycaster.firstHitOnly=true;
+  if(S.mode==='overview'){ const h=raycaster.intersectObjects(ovMeshes,false)[0]; if(h) selectOv(h.object); else { hideInfo(); if(S.ovSel){hlOv(S.ovSel,false); S.ovSel=null;} } return; }
   const ph=raycaster.intersectObjects(pinG.children.filter(p=>p.visible),false)[0];
+  raycaster.firstHitOnly=false;
   const mh=raycaster.intersectObjects(meshes.filter(x=>x.visible),false).filter(h=>!clipped(h.point))[0];
   if(ph && (!mh || ph.distance<mh.distance+2)){ onPinClick(ph.object.userData.i); return; }
-  if(mh){ // 가장 가까운 핀(화면상) 또는 뼈 이름
+  if(mh){
     let best=null,bd=1e9; pins.forEach((p,i)=>{ if(!p.mesh.visible||p.occ) return; const d=p.pos.distanceTo(mh.point); if(d<bd){bd=d;best=i;} });
     if(best!=null && bd<Math.max(4,radius*0.05) && !(S.quiz&&S.quiz.mode!=='find')){ onPinClick(best); return; }
-    if(S.quiz&&S.quiz.mode==='find') return;
-    const id=mh.object.userData.id; const c=MS[id]; const owner=ITEMS.find(it=>it.id!==S.item.id && Object.values(it.var).some(v=>v.meshes.length===1&&v.meshes[0]===id));
-    const chip=$('#chip'); chip.innerHTML=esc(c.ko)+' <span class="muted">'+esc(c.en)+'</span>'+(owner&&meshes.length>1?'<button id="goBone">이 뼈만 보기 →</button>':'');
-    chip.style.display='block'; if(owner&&meshes.length>1) $('#goBone').onclick=()=>{const sd=Object.entries(owner.var).find(([s,v])=>v.meshes[0]===id)[0]; loadItem(owner.id,sd||null);};
-    flashMesh(mh.object);
-  } else { $('#chip').style.display='none'; }
+    if(meshes.length>1 && !S.quiz){
+      const id=mh.object.userData.id; const o=ovById[id]; if(!o) return; const {it,sd}=ovItem(o);
+      const el=$('#info'); el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button><div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}</div>${it.id!==S.item.id?`<div class="acts"><button class="go" id="goBone">따로 보기 →</button></div>`:''}`;
+      el.style.display='block'; const g=$('#goBone'); if(g) g.onclick=()=>openItem(it.id,sd||null);
+      mh.object.material.emissive=new THREE.Color(0x553300); dirty=true; setTimeout(()=>{mh.object.material.emissive=new THREE.Color(0);dirty=true;},500);
+    }
+  }
 });
-function flashMesh(m){ const c=m.material.color.getHex(); m.material.emissive=new THREE.Color(0x553300); dirty=true; setTimeout(()=>{m.material.emissive=new THREE.Color(0);dirty=true;},450); }
+let hoverT=0;
+cv.addEventListener('pointermove',e=>{ const tb=$('#tipBox'); if(S.mode!=='overview'||e.pointerType!=='mouse'||down){tb.style.display='none';return;}
+  const now=performance.now(); if(now-hoverT<40) return; hoverT=now;
+  raycaster.setFromCamera(ndc(e),cam); raycaster.firstHitOnly=true; raycaster.far=Infinity;
+  const h=raycaster.intersectObjects(ovMeshes,false)[0];
+  if(h){ const o=h.object.userData.ov; const r=main.getBoundingClientRect(); tb.innerHTML=esc(o.en)+'<small>'+esc(o.ko)+'</small>'; tb.style.left=(e.clientX-r.left+14)+'px'; tb.style.top=(e.clientY-r.top+10)+'px'; tb.style.display='block'; cv.style.cursor='pointer'; }
+  else { tb.style.display='none'; cv.style.cursor=''; } });
+cv.addEventListener('pointerleave',()=>{$('#tipBox').style.display='none';});
 
-/* ---------- UI ---------- */
-const GROUPS=['머리뼈','척주','가슴우리','팔','다리'];
+/* ---------- 사이드바 ---------- */
 function renderList(){
   const q=$('#q').value.trim().toLowerCase(); const L=$('#list'); let h='';
-  if(q){ // 뼈 + 랜드마크 검색
-    const its=ITEMS.filter(it=>(it.ko+it.en+it.id).toLowerCase().includes(q));
-    if(its.length){h+='<div class="grp">뼈</div>'; its.forEach(it=>h+=`<button class="it" data-id="${it.id}">${esc(it.ko)}</button>`);}
+  if(q){
+    const its=ITEMS.filter(it=>(it.ko+' '+it.en+' '+it.id).toLowerCase().includes(q));
+    if(its.length){h+='<div class="grp">BONES · 뼈</div>'; its.forEach(it=>h+=`<button class="hit" data-id="${it.id}">${esc(it.en)}<span class="ko">${esc(itemKo(it))}</span></button>`);}
     const ks=Object.entries(LM).filter(([k,l])=>(l.n+' '+l.o+' '+l.e).toLowerCase().includes(q)).slice(0,60);
-    if(ks.length){h+='<div class="grp">랜드마크</div>'; ks.forEach(([k,l])=>{ const it=ITEMS.find(it=>Object.values(it.var).some(v=>v.pts.some(p=>p[0]===k)) && it.id===S.item?.id) || ITEMS.find(it=>Object.values(it.var).some(v=>v.pts.some(p=>p[0]===k)) && !['skull','pelvis','spine'].includes(it.id)) || ITEMS.find(it=>Object.values(it.var).some(v=>v.pts.some(p=>p[0]===k)));
-      if(it) h+=`<button class="hit" data-id="${it.id}" data-k="${k}">${esc(short(l.n))} <i>${esc(l.o)} · ${esc(it.ko.split(' ')[0])}</i></button>`;});}
+    if(ks.length){h+='<div class="grp">STRUCTURES · 구조물</div>'; ks.forEach(([k,l])=>{
+      const has=it=>Object.values(it.var).some(v=>v.pts.some(p=>p[0]===k));
+      const it=(S.item&&has(S.item)&&S.item)||ITEMS.find(it=>has(it)&&!['skull','pelvis','spine'].includes(it.id))||ITEMS.find(has);
+      if(it) h+=`<button class="hit" data-id="${it.id}" data-k="${k}">${esc(enS(l))}<span class="ko">${esc(koS(l))}${l.o?' · '+esc(l.o):''} — ${esc(it.en)}</span></button>`;});}
     if(!h) h='<div class="grp">결과 없음</div>';
   } else {
-    for(const g of GROUPS){ h+=`<div class="grp">${g}</div>`;
-      ITEMS.filter(it=>it.grp===g).forEach(it=>{ const n=Object.values(it.var)[0].pts.length; h+=`<button class="it${S.item&&S.item.id===it.id?' on':''}" data-id="${it.id}">${esc(it.ko)}<small>${n?n:''}</small></button>`;}); }
+    h+=`<button class="home${S.mode==='overview'?' on':''}" id="homeBtn"><span class="ic">🦴</span><span>Skeleton<span class="ko">전신 뼈대</span></span></button>`;
+    NAV.forEach((c,ci)=>{ const oc=!!S.open['c'+ci]; const cur=S.mode==='bone'&&S.item&&c.subs.some(s=>s.items.includes(S.item.id));
+      h+=`<button class="cat${oc?' open':''}${cur?' cur':''}" data-c="${ci}"><span><span class="t">${esc(c.en)}</span><span class="ko">${esc(c.ko)}</span></span><span class="chev">▶</span></button><div class="subwrap${oc?' open':''}">`;
+      c.subs.forEach((s,si)=>{
+        if(s.items.length===1){ const it=byId[s.items[0]]; const on=S.mode==='bone'&&S.item&&S.item.id===it.id; h+=`<button class="subh" data-id="${it.id}" style="${on?'color:var(--acc)':''}">${esc(s.en)}<span class="ko">${esc(s.ko)}</span></button>`; return; }
+        const os=!!S.open['s'+ci+'_'+si];
+        h+=`<button class="subh${os?' open':''}" data-s="${ci}_${si}">${esc(s.en)}<span class="ko">${esc(s.ko)}</span><span class="chev">▶</span></button><div class="items${os?' open':''}">`;
+        s.items.forEach(id=>{const it=byId[id]; h+=`<button class="it${S.mode==='bone'&&S.item&&S.item.id===id?' on':''}" data-id="${id}">${esc(it.en)}<span class="ko">${esc(itemKo(it))}</span></button>`;});
+        h+='</div>'; });
+      h+='</div>'; });
   }
   L.innerHTML=h;
-  L.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.k; if(!S.item||S.item.id!==b.dataset.id) await loadItem(b.dataset.id); if(k) selectKey(k); $('#side').classList.remove('open'); });
+  const hb=$('#homeBtn'); if(hb) hb.onclick=()=>{ $('#side').classList.remove('open'); enterOverview(); };
+  L.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ const k='c'+b.dataset.c; S.open[k]=!S.open[k]; renderList(); });
+  L.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ const k='s'+b.dataset.s; S.open[k]=!S.open[k]; renderList(); });
+  L.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.k; if(S.mode!=='bone'||!S.item||S.item.id!==b.dataset.id) await openItem(b.dataset.id); if(k) selectKey(k); $('#side').classList.remove('open'); });
 }
 $('#q').addEventListener('input',renderList);
+$('#backBtn button').onclick=()=>enterOverview();
 
 function renderTop(){
-  const it=S.item; const v=variant();
-  $('#ttl').innerHTML=esc(it.ko)+(it.var.R?` <span style="color:var(--acc)">${S.side==='R'?'오른쪽':'왼쪽'}</span>`:'')+`<small>${esc(it.en)}${S.quiz&&S.quiz.mode==='lr'?'':''}</small>`;
-  if(S.quiz&&S.quiz.mode==='lr') $('#ttl').innerHTML='좌우 구분 퀴즈<small>어느 쪽 뼈일까?</small>';
+  const ov=S.mode==='overview';
+  $('#backBtn').style.display=ov?'none':'inline-flex';
+  if(ov){
+    $('#ttl').innerHTML='Skeleton<small>전신 뼈대 · 뼈를 누르면 이름과 설명이 나와요</small>';
+    $('#sideSeg').style.display='none'; $('#presetSeg').style.display='none'; $('#labSeg').style.display='none';
+    $('#viewSeg').innerHTML=['ant','post','R','L'].map(v=>`<button data-v="${v}" class="${S.view===v?'on':''}">${VIEWNAMES[v]}</button>`).join('');
+    $('#viewSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{setView(b.dataset.v);}); return;
+  }
+  const it=S.item; const v=variant(); $('#labSeg').style.display='inline-flex';
+  if(S.quiz&&S.quiz.mode==='lr') $('#ttl').innerHTML='Left or right?<small>좌우 구분 퀴즈 — 어느 쪽 뼈일까?</small>';
+  else $('#ttl').innerHTML=esc(it.en)+(it.var.R?` <span class="sd">${S.side==='R'?'Right · 오른쪽':'Left · 왼쪽'}</span>`:'')+`<small>${esc(itemKo(it))}</small>`;
   const ss=$('#sideSeg'); ss.style.display=it.var.R&&!(S.quiz&&S.quiz.mode==='lr')?'inline-flex':'none';
   ss.innerHTML=`<button class="${S.side==='R'?'on':''}" data-s="R">오른쪽</button><button class="${S.side==='L'?'on':''}" data-s="L">왼쪽</button>`;
   ss.querySelectorAll('button').forEach(b=>b.onclick=()=>loadItem(it.id,b.dataset.s,true));
@@ -372,50 +464,61 @@ function renderTop(){
   const ps=$('#presetSeg');
   if(it.id==='skull'){ ps.style.display='inline-flex'; ps.innerHTML=`<button data-p="int" class="${S.preset==='int'?'on':''}">바닥 속면</button><button data-p="ext" class="${S.preset==='ext'?'on':''}">바닥 바깥면</button><button data-p="col" class="${S.colorBones?'on':''}">뼈별 색</button>`;
     ps.querySelectorAll('button').forEach(b=>b.onclick=()=>{ if(b.dataset.p==='col'){S.colorBones=!S.colorBones; const pr=S.preset; loadItem('skull',null,true).then(()=>{ if(pr) skullPreset(pr);});} else skullPreset(b.dataset.p);});
-  } else if(v.meshes.length>1){ ps.style.display='inline-flex'; ps.innerHTML=`<button data-p="col" class="${S.colorBones?'on':''}">뼈별 색</button>`; ps.querySelector('button').onclick=()=>{S.colorBones=!S.colorBones; loadItem(it.id,null,true);}; }
+  } else if(v.meshes.length>1){ ps.style.display='inline-flex'; ps.innerHTML=`<button class="${S.colorBones?'on':''}">뼈별 색</button>`; ps.querySelector('button').onclick=()=>{S.colorBones=!S.colorBones; loadItem(it.id,null,true);}; }
   else ps.style.display='none';
   const ls=$('#labSeg');
-  ls.innerHTML=`<button data-l="on" class="${S.labels==='on'?'on':''}">이름 보기</button><button data-l="off" class="${S.labels==='off'?'on':''}">이름 숨김</button>`+
-    `<button data-f="all" class="${S.typeF==='all'?'on':''}">전체</button><button data-f="f" class="${S.typeF==='f'?'on':''}">구멍만</button>`;
+  ls.innerHTML=`<button data-l="on" class="${S.labels==='on'?'on':''}">이름 보기</button><button data-l="off" class="${S.labels==='off'?'on':''}">이름 숨김</button><button data-f="all" class="${S.typeF==='all'?'on':''}">전체</button><button data-f="f" class="${S.typeF==='f'?'on':''}">구멍만</button>`;
   ls.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{S.labels=b.dataset.l; renderTop(); dirty=true;});
-  ls.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.typeF=b.dataset.f; applyFilter(); if(S.preset) skullPreset(S.preset),skullPreset(S.preset); renderTop(); renderPanel();});
+  ls.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.typeF=b.dataset.f; applyFilter(); if(S.preset){const p=S.preset; S.preset=null; skullPreset(p);} renderTop(); renderPanel();});
 }
 
-/* panel */
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b)); if(S.tab!=='quiz'&&S.quiz) stopQuiz(); renderPanel(); });
-function uniqKeys(){ const seen=new Set(), out=[]; variant().pts.forEach(p=>{ if(!seen.has(p[0])){seen.add(p[0]); out.push(p[0]);} }); return out; }
+/* ---------- 오른쪽 패널 ---------- */
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; if(S.tab!=='quiz'&&S.quiz) stopQuiz(); renderPanel(); });
+function uniqKeys(){ if(!S.item) return []; const seen=new Set(), out=[]; variant().pts.forEach(p=>{ if(!seen.has(p[0])){seen.add(p[0]); out.push(p[0]);} }); return out; }
 function renderPanel(){
-  const b=$('#pbody'); const it=S.item; const info=it.info||{};
-  document.querySelector('#tabs [data-t="for"]').style.display=uniqKeys().some(k=>LM[k].t==='f')?'':'none';
+  const b=$('#pbody');
+  if(S.mode==='overview'){
+    $('#tabs').style.display='none';
+    let h=`<div class="card"><h3>Skeleton · 전신 뼈대</h3><p>성인 뼈대는 약 206개의 뼈로 이뤄진다. 뼈를 누르면 확대되면서 이름과 설명이 나오고, <b style="color:var(--acc)">따로 보기</b>를 누르면 그 뼈만 크게 띄워 구조물·구멍·통과하는 신경과 혈관을 자세히 볼 수 있다.</p></div><div class="lmg">CATEGORIES · 분류</div>`;
+    NAV.forEach((c,ci)=>{ h+=`<button class="catbtn" data-c="${ci}">${esc(c.en)}<span class="ko">${esc(c.ko)}</span></button>`; });
+    h+=`<div class="note">· 드래그: 회전 · 휠/핀치: 확대 · 오른쪽 드래그(두 손가락): 이동<br>· 3D 모델: BodyParts3D © DBCLS (CC BY 4.0), 성인 남성 1인. 전신 뼈대는 가볍게 줄인 모델이고 "따로 보기"에서는 원본 해상도로 나옵니다. 꼬리뼈는 원본 데이터에 없습니다.</div>`;
+    b.innerHTML=h;
+    b.querySelectorAll('[data-c]').forEach(x=>x.onclick=()=>{ const ci=+x.dataset.c; S.open['c'+ci]=true; renderList(); $('#side').classList.add('open'); if(innerWidth<900) $('#panel').classList.remove('open'); });
+    return;
+  }
+  $('#tabs').style.display='flex';
+  const it=S.item; const info=it.info||{};
+  const hasF=uniqKeys().some(k=>LM[k].t==='f');
+  document.querySelector('#tabs [data-t="for"]').style.display=hasF?'':'none';
+  if(S.tab==='for'&&!hasF) S.tab='info';
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===S.tab));
   if(S.tab==='info'){
-    let h=`<div class="card"><h3>개요</h3><p>${esc(info.d||'')}</p></div>`;
-    if(info.lr) h+=`<div class="card"><h3>좌우 구분법</h3><p>${esc(info.lr)}</p></div>`;
-    if(info.tip) h+=`<div class="card"><h3>공부 팁</h3><p>${esc(info.tip)}</p></div>`;
-    const ks=uniqKeys(); h+=`<div class="muted">랜드마크 ${ks.length}개 · 그중 구멍·관 ${ks.filter(k=>LM[k].t==='f').length}개. 핀을 누르거나 "랜드마크" 탭에서 고르세요.</div>`;
-    h+=`<div class="note">· 마우스: 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 모바일: 한 손가락 회전, 두 손가락 확대·이동.<br>· 파란 핀 = 구멍·관(통과 구조물 있음), 빨간 핀 = 돌기·면·선 등.<br>· 3D 모델: BodyParts3D © DBCLS (CC BY 4.0). 성인 남성 1인 모델이라 개인차가 있고, 작은 구멍은 모델에 뚫려 있지 않아 위치만 표시한 것도 있습니다. 핀 위치는 자동 계산 + 수동 보정한 근사치입니다.</div>`;
+    let h=`<div class="card"><h3>Overview · 개요</h3><p>${esc(info.d||'')}</p></div>`;
+    if(info.lr) h+=`<div class="card"><h3>Left vs right · 좌우 구분법</h3><p>${esc(info.lr)}</p></div>`;
+    if(info.tip) h+=`<div class="card"><h3>Tip · 공부 팁</h3><p>${esc(info.tip)}</p></div>`;
+    const ks=uniqKeys(); h+=`<div class="muted">구조물 ${ks.length}개 · 그중 구멍·관 ${ks.filter(k=>LM[k].t==='f').length}개. 핀을 누르거나 "구조물" 탭에서 고르세요.</div>`;
+    h+=`<div class="note">· 파란 핀 = 구멍·관(통과 구조물 있음), 빨간 핀 = 돌기·면·선 등.<br>· 작은 구멍 중 모델에 뚫려 있지 않은 것은 위치만 표시했고, 핀 위치는 자동 계산 + 수동 보정한 근사치입니다. 교과서와 함께 보세요.</div>`;
     b.innerHTML=h;
   } else if(S.tab==='lm'){
     const ks=uniqKeys().filter(k=>S.typeF==='all'||(S.typeF==='f')===(LM[k].t==='f'));
     const groups={}; ks.forEach(k=>(groups[LM[k].t]=groups[LM[k].t]||[]).push(k));
-    let h=''; for(const t of ['f','p','j','s','l','x','b']) if(groups[t]){ h+=`<div class="lmg">${TYPES[t]} (${groups[t].length})</div>`;
-      groups[t].forEach(k=>{const l=LM[k]; h+=`<button class="lmi${S.sel===k?' on':''}" data-k="${k}"><span class="dot${t==='f'?' f':''}"></span><span>${esc(short(l.n))} <i>${esc(l.o)}</i></span></button>`;}); }
-    b.innerHTML=h||'<div class="muted">표시할 랜드마크가 없습니다.</div>';
+    let h=''; for(const t of ['f','p','j','s','l','x','b']) if(groups[t]){ h+=`<div class="lmg">${TYPES_EN[t].toUpperCase()} · ${TYPES[t]} (${groups[t].length})</div>`;
+      groups[t].forEach(k=>{const l=LM[k]; h+=`<button class="lmi${S.sel===k?' on':''}" data-k="${k}"><span class="dot${t==='f'?' f':''}"></span><span>${esc(enS(l))}<span class="ko">${esc(koS(l))}${l.o?' · '+esc(l.o):''}</span></span></button>`;}); }
+    b.innerHTML=h||'<div class="muted">표시할 구조물이 없습니다.</div>';
     b.querySelectorAll('.lmi').forEach(x=>x.onclick=()=>{selectKey(x.dataset.k); if(innerWidth<900) $('#panel').classList.remove('open');});
   } else if(S.tab==='for'){
     const ks=uniqKeys().filter(k=>LM[k].t==='f');
-    let h=`<div class="muted" style="margin-bottom:8px">행을 누르면 3D에서 위치를 보여줍니다.${it.id==='skull'?' 머리뼈바닥 구멍은 위쪽 "바닥 속면/바깥면" 버튼과 함께 보세요.':''}</div><table class="ft"><tr><th>구멍·관</th><th>통과 구조물</th></tr>`;
-    ks.forEach(k=>{const l=LM[k]; h+=`<tr data-k="${k}"><td>${esc(short(l.n))}<div class="muted">${esc(l.o)}</div></td><td>${esc(l.pas||l.d)}${l.bone?`<div class="muted">${esc(l.bone)}</div>`:''}</td></tr>`;});
+    let h=`<div class="muted" style="margin-bottom:8px">행을 누르면 3D에서 위치를 보여줍니다.${it.id==='skull'?' 머리뼈바닥 구멍은 위쪽 "바닥 속면/바깥면" 버튼과 함께 보세요.':''}</div><table class="ft"><tr><th>Foramen · 구멍</th><th>Contents · 통과 구조물</th></tr>`;
+    ks.forEach(k=>{const l=LM[k]; h+=`<tr data-k="${k}"><td>${esc(enS(l))}<span class="ko">${esc(koS(l))}${l.o?' · '+esc(l.o):''}</span></td><td>${esc(l.pas||l.d)}${l.bone?`<div class="muted">${esc(l.bone)}</div>`:''}</td></tr>`;});
     b.innerHTML=h+'</table>';
     b.querySelectorAll('tr[data-k]').forEach(x=>x.onclick=()=>selectKey(x.dataset.k));
-  } else if(S.tab==='quiz'){ renderQuiz(); }
+  } else if(S.tab==='quiz') renderQuiz();
 }
-function renderPanelSel(){ if(S.tab==='lm') renderPanel(); }
 function showInfo(k){
   const l=LM[k]; const el=$('#info');
-  const sides=pins.filter(p=>p.k===k).length;
   el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button>
-  <div class="nm">${esc(l.n)}<span class="tp">${TYPES[l.t]}</span></div>
-  <div class="alt">${l.o?'구용어 '+esc(l.o)+' · ':''}${esc(l.e)}</div>
+  <div class="nm">${esc(l.e)}<span class="tp">${TYPES_EN[l.t]}</span></div>
+  <div class="alt">${esc(l.n)}${l.o?' · 구용어 '+esc(l.o):''}</div>
   ${l.d?`<div class="row">${esc(l.d)}</div>`:''}
   ${l.pas?`<div class="row pass"><b>통과</b>${esc(l.pas)}</div>`:''}
   ${l.att?`<div class="row"><b>부착</b>${esc(l.att)}</div>`:''}
@@ -424,27 +527,28 @@ function showInfo(k){
 }
 function hideInfo(){ $('#info').style.display='none'; }
 
-/* ---------- quiz ---------- */
+/* ---------- 퀴즈 ---------- */
 const PAIRED=ITEMS.filter(it=>it.var.R && it.info && it.info.lr);
+const optHTML=k=>`${esc(enS(LM[k]))}<span class="ko">${esc(koS(LM[k]))}</span>`;
 function renderQuiz(){
   const b=$('#pbody'); const q=S.quiz;
   const hasF=uniqKeys().some(k=>LM[k].t==='f'&&LM[k].pas);
-  let h=`<div class="muted">모드를 고르세요 — 지금 보고 있는 뼈(${esc(S.item.ko)})에서 출제됩니다. 좌우 구분은 모든 짝뼈에서 무작위.</div><div style="margin:8px 0">`+
+  let h=`<div class="muted">모드를 고르세요 — 지금 보고 있는 뼈(${esc(S.item.en)})에서 출제됩니다. 좌우 구분은 모든 짝뼈에서 무작위.</div><div style="margin:8px 0">`+
     [['name','이름 맞히기'],['find','위치 찾기'],...(hasF?[['pass','통과 구조물']]:[]),['lr','좌우 구분']].map(([m,n])=>`<button class="ghost${q&&q.mode===m?' on':''}" data-m="${m}">${n}</button>`).join('')+'</div>';
-  if(q){ h+=`<div class="card"><span class="score">${q.ok} / ${q.n}</span><div id="qbody"></div></div>`; if(q.mode!=='lr') h+=`<button class="ghost" id="qstop">퀴즈 끝내기</button>`; else h+=`<button class="ghost" id="qstop">퀴즈 끝내기</button>`; }
+  if(q) h+=`<div class="card"><span class="score">${q.ok} / ${q.n}</span><div id="qbody"></div></div><button class="ghost" id="qstop">퀴즈 끝내기</button>`;
   b.innerHTML=h;
   b.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>startQuiz(x.dataset.m));
   if(q){ $('#qstop').onclick=stopQuiz; drawQ(); }
 }
-function startQuiz(m){ S.quiz={mode:m,ok:0,n:0}; hideInfo(); if(m==='lr'){ S.quiz.back={id:S.item.id,side:S.side}; } nextQuiz(); renderQuiz(); }
-function stopQuiz(){ const q=S.quiz; S.quiz=null; if(q&&q.mode==='lr'&&q.back){ loadItem(q.back.id,q.back.side); } renderPanel(); renderTop(); dirty=true; }
+function startQuiz(m){ S.quiz={mode:m,ok:0,n:0}; hideInfo(); if(m==='lr') S.quiz.back={id:S.item.id,side:S.side}; nextQuiz(); renderQuiz(); }
+function stopQuiz(){ const q=S.quiz; S.quiz=null; if(q&&q.mode==='lr'&&q.back) loadItem(q.back.id,q.back.side); renderPanel(); renderTop(); dirty=true; }
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 async function nextQuiz(){
   const q=S.quiz; if(!q) return; q.done=false; q.fb='';
   if(q.mode==='lr'){
     const it=pick(PAIRED); const sd=Math.random()<.5?'R':'L'; q.answer=sd; q.itemId=it.id;
-    await loadItem(it.id,sd,true); S.quiz=q; // loadItem keeps quiz
+    await loadItem(it.id,sd,true); S.quiz=q;
     const dirs=[[0,-1,0],[0,1,0],[1,0,0],[-1,0,0],[0.6,-0.8,0],[-0.6,-0.8,0],[0.5,0.7,0.5],[0,0,1]];
     const d=new THREE.Vector3(...pick(dirs)).normalize(); cam.up.set(0,0,1);
     const dist=radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.05; ctl.target.copy(center); cam.position.copy(center).addScaledVector(d,dist); ctl.update();
@@ -453,59 +557,57 @@ async function nextQuiz(){
   let ks=uniqKeys().filter(k=>pins.some(p=>p.k===k&&!p.filtered&&!p.hiddenByPreset));
   if(q.mode==='pass') ks=ks.filter(k=>LM[k].t==='f'&&LM[k].pas);
   if(ks.length<2){ q.target=null; drawQ(); return; }
-  let t=pick(ks); if(ks.length>1) while(t===q.target) t=pick(ks);
+  let t=pick(ks); while(t===q.target) t=pick(ks);
   q.target=t; S.sel=null;
-  pins.forEach(p=>{p.mesh.material.color.set(p.k===t&&q.mode==='name'?0xa78bfa:(p.t==='f'?0x38bdf8:0xf87171)); p.mesh.scale.setScalar(Math.max(0.9,radius*0.012)*(p.k===t&&q.mode==='name'?1.8:1));});
-  // 보기 4개: 같은 종류 우선
+  pins.forEach(p=>{const on=p.k===t&&q.mode==='name'; p.mesh.material.color.set(on?0xa78bfa:(p.t==='f'?0x38bdf8:0xf87171)); p.mesh.scale.setScalar(pinR()*(on?1.8:1)); p.mesh.material.depthTest=true;});
   const pool=(q.mode==='pass'?ks:uniqKeys()).filter(k=>k!==t); const same=pool.filter(k=>LM[k].t===LM[t].t);
   q.opts=shuffle([t,...shuffle(same.length>=3?same:pool).slice(0,3)]);
   if(q.mode==='name'){ const p=pins.find(p=>p.k===t); flyTo(p.pos); }
-  hideInfo(); drawQ(); dirty=true;
+  hideInfo(); drawQ(); occDirty=true; dirty=true;
 }
 function drawQ(){
   const q=S.quiz; const el=$('#qbody'); if(!q||!el) return;
+  const next=q.done?'<button class="big" id="qn">다음 문제</button>':'';
   if(q.mode==='lr'){ const it=byId[q.itemId];
-    el.innerHTML=`<div class="qq">이 ${esc(it.ko.split(' ')[0])}는 왼쪽? 오른쪽?</div><div class="muted">돌려 보면서 판단해 보세요.</div>
-    <div class="lr2"><button data-a="L">왼쪽</button><button data-a="R">오른쪽</button></div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?'<button class="big" id="qn">다음 문제</button>':''}`;
+    el.innerHTML=`<div class="qq">이 ${esc(it.en)}는 왼쪽? 오른쪽?</div><div class="muted">${esc(itemKo(it))} — 돌려 보면서 판단해 보세요.</div>
+    <div class="lr2"><button data-a="L">왼쪽 Left</button><button data-a="R">오른쪽 Right</button></div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
     el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(q.done) return; q.n++; const ok=b.dataset.a===q.answer; if(ok) q.ok++; q.done=true;
-      q.fbc=ok?'ok':'no'; q.fb=(ok?'정답! ':'오답 — ')+`${q.answer==='R'?'오른쪽':'왼쪽'} ${esc(it.ko.split(' ')[0])}입니다.<div class="muted" style="margin-top:6px">${esc(it.info.lr)}</div>`;
-      S.labels='on'; renderTop(); renderQuiz(); });
+      q.fbc=ok?'ok':'no'; q.fb=(ok?'정답! ':'오답 — ')+`${q.answer==='R'?'Right · 오른쪽':'Left · 왼쪽'} ${esc(it.en)}입니다.<div class="muted" style="margin-top:6px">${esc(it.info.lr)}</div>`;
+      renderTop(); renderQuiz(); });
     if(q.done) $('#qn').onclick=()=>nextQuiz().then(renderQuiz);
     return; }
   if(!q.target){ el.innerHTML='<div class="muted">이 뼈에는 출제할 항목이 부족합니다. 다른 뼈를 고르세요.</div>'; return; }
   const L=LM[q.target];
-  if(q.mode==='name'){ el.innerHTML=`<div class="qq">보라색 핀(?)의 이름은?</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${esc(short(LM[k].n))} <span class="muted">${esc(LM[k].o)}</span></button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?'<button class="big" id="qn">다음 문제</button>':''}`; }
-  else if(q.mode==='pass'){ el.innerHTML=`<div class="qq">다음 구조물이 지나가는 구멍은?</div><div class="card" style="margin:6px 0">${esc(L.pas)}</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${esc(short(LM[k].n))} <span class="muted">${esc(LM[k].o)}</span></button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?'<button class="big" id="qn">다음 문제</button>':''}`; }
-  else if(q.mode==='find'){ el.innerHTML=`<div class="qq">3D에서 이 위치를 찾아 누르세요</div><div style="font-size:16px;margin:6px 0">${esc(L.n)}</div><div class="muted">${esc(L.o)} · ${esc(L.e)}</div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?'<button class="big" id="qn">다음 문제</button>':'<button class="ghost" id="qskip" style="margin-top:8px">모르겠음 (정답 보기)</button>'}`;
+  if(q.mode==='name') el.innerHTML=`<div class="qq">보라색 핀(?)의 이름은?</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
+  else if(q.mode==='pass') el.innerHTML=`<div class="qq">다음 구조물이 지나가는 구멍은?</div><div class="card" style="margin:6px 0">${esc(L.pas)}</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
+  else if(q.mode==='find'){ el.innerHTML=`<div class="qq">3D에서 이 위치를 찾아 누르세요</div><div style="font-size:16px;font-weight:700;margin:6px 0 0">${esc(L.e)}</div><div class="muted">${esc(L.n)}${L.o?' · '+esc(L.o):''}</div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?next:'<button class="ghost" id="qskip" style="margin-top:8px">모르겠음 (정답 보기)</button>'}`;
     const sk=$('#qskip'); if(sk) sk.onclick=()=>{ q.n++; q.done=true; q.fbc='no'; q.fb='정답 위치를 표시했습니다.'; selectKey(q.target); drawQ(); }; }
-  el.querySelectorAll('.qbtn').forEach(b=>b.onclick=()=>{ if(q.done) return; q.n++; const ok=b.dataset.k===q.target; if(ok) q.ok++; q.done=true;
-    el.querySelectorAll('.qbtn').forEach(x=>{ if(x.dataset.k===q.target) x.classList.add('ok'); else if(x===b) x.classList.add('no'); });
-    q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':'오답'; if(q.mode!=='find'){ selectKey(q.target,null,q.mode==='pass'); }
-    renderQuiz(); });
+  el.querySelectorAll('.qbtn').forEach(b=>b.onclick=()=>{ if(q.done) return; q.n++; const ok=b.dataset.k===q.target; if(ok) q.ok++; q.done=true; q.pick=b.dataset.k;
+    q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':'오답'; selectKey(q.target,null,q.mode==='pass'); renderQuiz(); });
+  if(q.done) el.querySelectorAll('.qbtn').forEach(b=>{ if(b.dataset.k===q.target) b.classList.add('ok'); else if(b.dataset.k===q.pick) b.classList.add('no'); });
   const n=$('#qn'); if(n) n.onclick=()=>{ nextQuiz(); renderQuiz(); };
 }
 function quizAnswerFind(i){
   const q=S.quiz; if(q.done) return; q.n++; const ok=pins[i].k===q.target; if(ok) q.ok++; q.done=true;
-  q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':`오답 — 누른 곳은 "${esc(short(LM[pins[i].k].n))}". 정답 위치를 표시했습니다.`;
+  q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':`오답 — 누른 곳은 "${esc(enS(LM[pins[i].k]))}". 정답 위치를 표시했습니다.`;
   selectKey(q.target); renderQuiz();
 }
 
-/* ---------- hash ---------- */
-function setHash(){ if(!S.item) return; const h='#'+S.item.id+(S.item.var.R?'/'+S.side:'')+(S.sel?'/'+S.sel:''); if(location.hash!==h) history.replaceState(null,'',h); }
+/* ---------- 주소 ---------- */
+function setHash(){ const h=S.mode==='overview'?'#skeleton':'#'+S.item.id+(S.item.var.R?'/'+S.side:'')+(S.sel?'/'+S.sel:''); if(location.hash!==h) history.replaceState(null,'',h); }
 async function fromHash(){ const [id,a,b]=decodeURIComponent(location.hash.slice(1)).split('/'); if(byId[id]){ const side=(a==='R'||a==='L')?a:null; const k=side?b:a; await loadItem(id,side); if(k&&LM[k]) selectKey(k); return true;} return false; }
 
 /* ---------- loop ---------- */
 ctl.addEventListener('change',()=>{dirty=true;});
+let idlePending=false;
 function loop(now){ requestAnimationFrame(loop); stepAnim(now); ctl.update();
   key.position.copy(cam.position).add(cam.up.clone().multiplyScalar(radius*2)); key.target.position.copy(ctl.target);
   fill.position.copy(ctl.target).sub(cam.position.clone().sub(ctl.target)).add(new THREE.Vector3(0,0,-radius));
   if(dirty||anim){ ren.render(scene,cam); occDirty=true; updateLabels(now); dirty=false; idlePending=true; }
   else if(idlePending && now-lastOcc>150){ occDirty=true; updateLabels(now); idlePending=occDirty; } }
-let idlePending=false;
 resize();
-if(!(await fromHash())) await loadItem('skull');
+if(!(await fromHash())) await enterOverview();
 requestAnimationFrame(loop);
-window.addEventListener('hashchange',()=>fromHash());
 </script>
 </body>
 </html>

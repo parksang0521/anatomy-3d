@@ -148,6 +148,8 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
   #hint{display:none}
   .seg button{padding:6px 9px}
 }
+#boneLink{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:12px;background:#f5b94a;color:#1a1205;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 4px 18px rgba(245,185,74,.35);white-space:nowrap}#boneLink span{font-size:12px;font-weight:500;opacity:.8}#boneLink:hover{background:#ffcb6b}
+@media (max-width:720px){#boneLink{padding:7px 11px;font-size:13px}#boneLink span{display:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
@@ -157,7 +159,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
     <header>
       <button id="sideClose" title="목록 접기">⟨ 접기</button>
       <h1>인체 해부학 <span>3D</span> 아틀라스</h1>
-      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다 · <a href="bones/" style="color:#fbbf24;text-decoration:none;font-weight:700">골학 3D →</a></div>
+      <div class="tag">실제 인체 데이터 기반 · 구조물을 클릭하면 설명이 나옵니다</div>
       <input id="search" type="search" placeholder="검색: 넙다리뼈, 대퇴골, femur…" autocomplete="off">
     </header>
     <div id="sideScroll">
@@ -189,6 +191,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="seg"><button data-sex="male" class="on">남성</button><button data-sex="female">여성</button></div>
     </div>
     <div class="bar" id="viewBar">
+      <a id="boneLink" href="bones/">🦴 골학 3D <span>Osteology →</span></a>
       <div class="seg">
         <button data-view="front">앞</button><button data-view="back">뒤</button><button data-view="right">오른쪽</button><button data-view="left">왼쪽</button><button data-view="reset" title="처음 시점">↺</button>
       </div>
