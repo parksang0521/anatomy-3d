@@ -172,6 +172,7 @@ for s in structs.values(): s['P'] = [p + np.array([0, yoff, 0]) for p in s['P']]
 allp[:, 1] += yoff
 lo = allp.min(0) - 0.001; hi = allp.max(0) + 0.001; sc = (hi - lo) / 65535
 RS = {}
+RECS = []
 files = {}; manifest = []; tri = {}
 def pretty(en):
     e = re.sub(r'\s*\((L|R)\)$', lambda m: '', en)
@@ -183,19 +184,15 @@ for i, (k, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta'
     I, segs, rst = RG.split(m['sys'], m['key'], m['en'], m['grp'], P, I, 'f')
     for g, (sm, n, mn, mx) in rst.items():
         a_ = RS.setdefault(g, [np.zeros(3), 0, np.full(3, 9.0), np.full(3, -9.0)]); a_[0] += sm; a_[1] += n; a_[2] = np.minimum(a_[2], mn); a_[3] = np.maximum(a_[3], mx)
-    qp = np.round((P - lo) / sc).astype('<u2'); big = len(P) > 65535
-    fsys = 'f_' + m['sys']; b = files.setdefault(fsys, bytearray())
-    po = len(b); b += qp.tobytes()
-    while len(b) % 4: b += b'\0'
-    io = len(b); b += I.astype('<u4' if big else '<u2').tobytes()
-    while len(b) % 4: b += b'\0'
+    qp = np.round((P - lo) / sc).astype('<u2')
+    fsys = 'f_' + m['sys']
     c = ((P.min(0) + P.max(0)) / 2).round(4).tolist(); r = float(np.linalg.norm(P.max(0) - P.min(0)) / 2)
     tri[m['sys']] = tri.get(m['sys'], 0) + len(I) // 3
     manifest.append(dict(id=f'f{i}', en='Female ' + pretty(m['en']), ko=m['ko'], old=m['old'], key=m['key'], sys=m['sys'], grp=m['grp'],
-                         f=fsys, po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4), sg=segs))
-sizes = {}
-for s, b in files.items():
-    gz = gzip.compress(bytes(b), 9); open(f'{OUT}/{s}.bin.gz', 'wb').write(gz); sizes[s] = len(gz)
+                         f=fsys, vc=len(P), ic=len(I), c=c, r=round(r, 4), sg=segs))
+    RECS.append(dict(file=fsys, qp=qp, I=I, man=manifest[-1]))
+import writer
+sizes = writer.emit(RECS, OUT)
 REG = {RG.REGIONS[g]: dict(c=(v[0] / v[1]).round(4).tolist(), lo=v[2].round(4).tolist(), hi=v[3].round(4).tolist()) for g, v in RS.items()}
 json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest, regions=REG, regionNames=RG.REGIONS, sex='female',
                source='HuBMAP HRA 3D Reference Object Library (Visible Human Female), CC BY 4.0'),

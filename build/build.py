@@ -269,7 +269,7 @@ for p in A['parts']:
     buf = chunks[p['chunk']]
     pos = np.frombuffer(buf, dtype='<f4', count=p['vertexCount'] * 3, offset=p['positions']).reshape(-1, 3).astype(np.float64)
     idx = np.frombuffer(buf, dtype='<u4', count=p['indexCount'], offset=p['indices']).astype(np.int64)
-    if c['sys'] in ('muscular', 'arterial', 'venous') and len(idx) > 900:
+    if False and c['sys'] in ('muscular', 'arterial', 'venous') and len(idx) > 900:
         p2, f2 = fast_simplification.simplify(pos.astype(np.float32), idx.reshape(-1, 3).astype(np.int32), target_reduction=0.5)
         pos, idx = p2.astype(np.float64), f2.reshape(-1).astype(np.int64)
     put(p['name'], c, pos, idx)
@@ -295,10 +295,14 @@ import nerves as NV
 for o in NV.build():
     put(o['en'], dict(sys='nerves', ko=o['ko'], old='', key=o['key'], grp=o['grp']), o['V'], o['F'].reshape(-1).astype(np.int64))
 
+import hires
+hires.upgrade(structs)
+import writer
 # ---------- 출력 ----------
 allp = np.concatenate([np.concatenate(s['P']) for s in structs.values()])
 lo = allp.min(0) - 0.001; hi = allp.max(0) + 0.001; sc = (hi - lo) / 65535
 RS = {}
+RECS = []
 files = {}; manifest = []
 tri = {}
 for i, (en, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta']['sys'], kv[0]))):
@@ -319,20 +323,12 @@ for i, (en, st) in enumerate(sorted(structs.items(), key=lambda kv: (kv[1]['meta
     for g, (sm, n, mn, mx) in rst.items():
         a_ = RS.setdefault(g, [np.zeros(3), 0, np.full(3, 9.0), np.full(3, -9.0)]); a_[0] += sm; a_[1] += n; a_[2] = np.minimum(a_[2], mn); a_[3] = np.maximum(a_[3], mx)
     qp = np.round((P - lo) / sc).astype('<u2')
-    big = len(P) > 65535
-    ib = I.astype('<u4' if big else '<u2')
-    f = files.setdefault(m['sys'], bytearray())
-    po = len(f); f += qp.tobytes()
-    while len(f) % 4: f += b'\0'
-    io = len(f); f += ib.tobytes()
-    while len(f) % 4: f += b'\0'
     c = ((P.min(0) + P.max(0)) / 2).round(4).tolist(); r = float(np.linalg.norm(P.max(0) - P.min(0)) / 2)
     tri[m['sys']] = tri.get(m['sys'], 0) + len(I) // 3
     manifest.append(dict(id=f's{i}', en=en, ko=m['ko'] or en, old=m['old'], key=m['key'], sys=m['sys'], grp=m['grp'],
-                         f=m['sys'], po=po, vc=len(P), io=io, ic=len(I), i32=big, c=c, r=round(r, 4), sg=segs))
-sizes = {}
-for s, b in files.items():
-    gz = gzip.compress(bytes(b), 9); open(f'{OUT}/{s}.bin.gz', 'wb').write(gz); sizes[s] = len(gz)
+                         f=m['sys'], vc=len(P), ic=len(I), c=c, r=round(r, 4), sg=segs))
+    RECS.append(dict(file=m['sys'], qp=qp, I=I, man=manifest[-1]))
+sizes = writer.emit(RECS, OUT)
 REG = {RG.REGIONS[g]: dict(c=(v[0] / v[1]).round(4).tolist(), lo=v[2].round(4).tolist(), hi=v[3].round(4).tolist()) for g, v in RS.items()}
 json.dump(dict(lo=lo.round(6).tolist(), sc=sc.tolist(), files=sizes, parts=manifest, regions=REG, regionNames=RG.REGIONS,
                source='BodyParts3D © DBCLS (CC BY 4.0)'), open(f'{OUT}/manifest.json', 'w'), ensure_ascii=False, separators=(',', ':'))

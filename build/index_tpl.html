@@ -169,6 +169,7 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
       <div class="row">피부 윤곽 <input id="skinOp" type="range" min="0" max="0.5" step="0.01" value="0.08"></div>
       <div class="row">뼈 반투명 (X-ray) <label class="sw"><input id="xray" type="checkbox"><span></span></label></div>
       <div class="row">자동 회전 <label class="sw"><input id="spin" type="checkbox"><span></span></label></div>
+      <div class="row">고화질 (그림자 음영·윤곽선) <label class="sw"><input id="hq" type="checkbox"><span></span></label></div>
       <div class="row">단면 보기 <select id="clipMode"><option value="off">끄기</option><option value="axial">가로면 (수평)</option><option value="sagittal">시상면</option><option value="coronal">관상면</option></select></div>
       <div class="row" id="clipRow" style="display:none"><input id="clipPos" type="range" min="0" max="1" step="0.002" value="0.6" style="width:170px"><button class="opbtn" id="clipFlip" title="반대쪽 보기">⇅</button></div>
     </div>
@@ -220,6 +221,13 @@ select{background:#111a2e;color:var(--text);border:1px solid var(--line);border-
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const SYSTEMS = {
   skeletal:   {ko:'골격계', dot:'#e9dfc9'},
@@ -299,11 +307,25 @@ camera.position.copy(HOME.p);
 const controls=new OrbitControls(camera,canvas);
 controls.target.copy(HOME.t); controls.enableDamping=true; controls.dampingFactor=.08;
 controls.minDistance=0.12; controls.maxDistance=7; controls.autoRotateSpeed=1.2; controls.zoomSpeed=1.2;
-scene.add(new THREE.HemisphereLight(0xeaf2ff,0x1a2233,1.0));
-const key=new THREE.DirectionalLight(0xffffff,1.8); key.position.set(1,3,2.5); scene.add(key);
-const fill=new THREE.DirectionalLight(0x9fc4ff,0.7); fill.position.set(-2,1,-1.5); scene.add(fill);
-const rim=new THREE.DirectionalLight(0xffe2c4,0.6); rim.position.set(0,1,-3); scene.add(rim);
-const headLight=new THREE.DirectionalLight(0xffffff,0.35); camera.add(headLight); scene.add(camera);
+{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; pm.dispose(); }
+scene.add(new THREE.HemisphereLight(0xeaf2ff,0x1a2233,0.55));
+const key=new THREE.DirectionalLight(0xfff6ea,2.2); key.position.set(1.2,3,2.5); scene.add(key);
+const fill=new THREE.DirectionalLight(0x9fc4ff,0.6); fill.position.set(-2,1,-1.5); scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffe2c4,0.9); rim.position.set(0,1.5,-3); scene.add(rim);
+const headLight=new THREE.DirectionalLight(0xffffff,0.45); camera.add(headLight); scene.add(camera);
+/* 후처리: 앰비언트 오클루전 + 선택 윤곽선 (고화질) */
+const HQ_DEFAULT=!matchMedia('(pointer:coarse)').matches && innerWidth>820;
+let HQ=HQ_DEFAULT; try{ const s=localStorage.getItem('anat-hq'); if(s!=null) HQ=s==='1'; }catch(e){}
+const rt=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,samples:4});
+const composer=new EffectComposer(renderer,rt);
+composer.addPass(new RenderPass(scene,camera));
+const gtao=new GTAOPass(scene,camera,4,4); gtao.output=GTAOPass.OUTPUT.Default; gtao.blendIntensity=0.9;
+gtao.updateGtaoMaterial({radius:0.06,distanceExponent:1.4,thickness:0.6,scale:1.0,samples:16}); gtao.updatePdMaterial({lumaPhi:10,depthPhi:2,normalPhi:3,radius:6,rings:2,samples:12});
+composer.addPass(gtao);
+const outline=new OutlinePass(new THREE.Vector2(4,4),scene,camera);
+outline.edgeStrength=4; outline.edgeThickness=1.2; outline.edgeGlow=0.25; outline.visibleEdgeColor.set(0x5eeaff); outline.hiddenEdgeColor.set(0x1e6f80);
+composer.addPass(outline);
+composer.addPass(new OutputPass());
 { const ring=new THREE.Mesh(new THREE.RingGeometry(0.42,0.426,96),new THREE.MeshBasicMaterial({color:0x22d3ee,transparent:true,opacity:.25}));
   ring.rotation.x=-Math.PI/2; ring.position.y=0.002; scene.add(ring);
   const cv=document.createElement('canvas'); cv.width=cv.height=256; const g=cv.getContext('2d');
@@ -351,6 +373,24 @@ function colorOf(p){
   return 0xcccccc;
 }
 
+/* ---------------- 재질 ---------------- */
+function makeMat(p){
+  const color=colorOf(p), k=p.key||'';
+  const base={color,metalness:0,envMapIntensity:0.3};
+  if(p.sys==='skeletal'){
+    const cart=/cartilage|disk|meniscus/i.test(p.en)||k==='costal'||k==='disk';
+    return new THREE.MeshPhysicalMaterial({...base,roughness:cart?0.35:0.62,clearcoat:cart?0.4:0.12,clearcoatRoughness:0.5,sheen:0.25,sheenRoughness:0.8,sheenColor:new THREE.Color(0xfff2dc)});
+  }
+  if(p.sys==='muscular'){
+    const tendon=/tendon|ligament|membrane|tract|linea/i.test(p.en);
+    return new THREE.MeshPhysicalMaterial({...base,roughness:tendon?0.35:0.5,clearcoat:tendon?0.5:0.25,clearcoatRoughness:0.45,sheen:tendon?0.2:0.6,sheenRoughness:0.5,sheenColor:new THREE.Color(tendon?0xffffff:0xff9a8a)});
+  }
+  if(p.sys==='arterial'||p.sys==='venous') return new THREE.MeshPhysicalMaterial({...base,roughness:0.3,clearcoat:0.7,clearcoatRoughness:0.25});
+  if(p.sys==='nerves') return new THREE.MeshPhysicalMaterial({...base,roughness:0.42,clearcoat:0.35,clearcoatRoughness:0.4,sheen:0.4,sheenColor:new THREE.Color(0xfff1b0)});
+  if(p.sys==='nervous') return new THREE.MeshPhysicalMaterial({...base,roughness:0.45,clearcoat:0.3,clearcoatRoughness:0.5,sheen:0.35,sheenColor:new THREE.Color(0xffd6d0)});
+  return new THREE.MeshPhysicalMaterial({...base,roughness:0.38,clearcoat:0.55,clearcoatRoughness:0.3,sheen:0.3,sheenColor:new THREE.Color(0xffe0d8)});
+}
+
 /* ---------------- 로딩 ---------------- */
 const parts={}, pickables=[], groups={}, skinG=new THREE.Group(); scene.add(skinG);
 for(const s in SYSTEMS){ groups[s]=new THREE.Group(); scene.add(groups[s]); }
@@ -368,10 +408,18 @@ let MAN=null, SEX='male'; let loaded={}, loading={};
 const fileOf=s=>(SEX==='female'?'f_':'')+s, sysOfFile=f=>f.replace(/^f_/,'');
 function buildMeshes(p,b){
   const [lx,ly,lz]=MAN.lo, [sx,sy,sz]=MAN.sc;
-  const q=new Uint16Array(b,p.po,p.vc*3); const pos=new Float32Array(p.vc*3);
-  for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*3]*sx; pos[i*3+1]=ly+q[i*3+1]*sy; pos[i*3+2]=lz+q[i*3+2]*sz; }
-  const idx=p.i32?new Uint32Array(b,p.io,p.ic):new Uint16Array(b,p.io,p.ic);
-  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx.slice(),1));
+  const pos=new Float32Array(p.vc*3); let idx;
+  if(p.enc){
+    const q=new Uint16Array(p.vc*4); MeshoptDecoder.decodeVertexBuffer(new Uint8Array(q.buffer),p.vc,8,new Uint8Array(b,p.pe,p.pl));
+    for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*4]*sx; pos[i*3+1]=ly+q[i*4+1]*sy; pos[i*3+2]=lz+q[i*4+2]*sz; }
+    const i32=new Uint32Array(p.ic); MeshoptDecoder.decodeIndexBuffer(new Uint8Array(i32.buffer),p.ic,4,new Uint8Array(b,p.ie,p.il));
+    idx = p.vc<65536 ? Uint16Array.from(i32) : i32;
+  } else {
+    const q=new Uint16Array(b,p.po,p.vc*3);
+    for(let i=0;i<p.vc;i++){ pos[i*3]=lx+q[i*3]*sx; pos[i*3+1]=ly+q[i*3+1]*sy; pos[i*3+2]=lz+q[i*3+2]*sz; }
+    idx=(p.i32?new Uint32Array(b,p.io,p.ic):new Uint16Array(b,p.io,p.ic)).slice();
+  }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setIndex(new THREE.BufferAttribute(idx,1));
   g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
   const segs=(p.sg&&p.sg.length)?p.sg:[[-1,0,p.ic]];
   const geoms=segs.map(([rid,st,cnt])=>{ if(segs.length===1) return g; const g2=new THREE.BufferGeometry();
@@ -379,7 +427,7 @@ function buildMeshes(p,b){
     g2.boundingSphere=g.boundingSphere; g2.boundingBox=g.boundingBox; return g2; });
   const regOf=i=>segs[i][0]>=0?MAN.regionNames[segs[i][0]]:null;
   if(p.sys==='skin'){ geoms.forEach((gg,i)=>{ const m=new THREE.Mesh(gg,skinMat); m.renderOrder=10; m.userData.region=regOf(i); m.visible=!m.userData.region||regionOn[m.userData.region]; skinG.add(m); }); return; }
-  const mat=new THREE.MeshStandardMaterial({color:colorOf(p),roughness:p.sys==='skeletal'?.7:.45,metalness:0});
+  const mat=makeMat(p);
   if(p.sys==='nervous'&&p.key==='eye'&&/cornea|lens|chamber|vitreous/i.test(p.en)){ mat.transparent=true; mat.opacity=.45; }
   const ghost=/^Female .*\bfat$|^Female (left |right )?kidney$/i.test(p.en)?0.3:/^Female .*cortex$/i.test(p.en)?0.5:null;
   if(ghost!=null){ mat.transparent=true; mat.opacity=ghost; mat.depthWrite=false; }
@@ -392,6 +440,7 @@ async function loadFiles(files,onBytes){
   const bufs={}; await Promise.all(files.map(async f=>{ bufs[f]=await fetchGz(`models/${f}.bin.gz`,onBytes); })); return bufs;
 }
 async function load(){
+  await MeshoptDecoder.ready;
   MAN=await (await fetch(SEX==='female'?'models/manifest_f.json':'models/manifest.json')).json();
   for(const p of MAN.parts){ if(p.sys==='skin') continue; parts[p.id]={...p,info:INFO[p.key]||null,meshes:[],grp:p.grp||'기타'}; }
   const first=Object.keys(MAN.files);
@@ -471,11 +520,12 @@ function applyOpacity(ghostId=null){
 function paint(){
   for(const p of Object.values(parts)){
     let c=0x000000,i=0;
-    if(p.id===hoverId){c=0x3b82f6;i=0.4;}
-    if(p.id===selId){c=0x22d3ee;i=0.6;}
+    if(p.id===hoverId){c=0x3b82f6;i=HQ?0.18:0.4;}
+    if(p.id===selId){c=0x22d3ee;i=HQ?0.28:0.6;}
     p.meshes.forEach(m=>{ m.material.emissive.setHex(c); m.material.emissiveIntensity=i; });
   }
   document.querySelectorAll('.item').forEach(b=>b.classList.toggle('on',b.dataset.id===selId));
+  outline.selectedObjects = selId&&parts[selId] ? parts[selId].meshes.filter(m=>m.visible) : (quiz.on&&quiz.target&&quiz.type==='name'&&!quiz.answered ? quiz.target.meshes : []);
 }
 
 /* ---------------- 카메라 ---------------- */
@@ -551,9 +601,11 @@ document.getElementById('search').oninput=e=>{
   list.querySelectorAll('.item').forEach(b=>b.style.display=!q||b.dataset.q.includes(q)?'':'none');
   list.querySelectorAll('details').forEach(d=>{ const any=[...d.querySelectorAll('.item')].some(b=>b.style.display!=='none'); if(q){ d.open=any; d.style.display=any?'':'none'; } else { d.style.display=''; d.open=false; } });
 };
-document.getElementById('skinOp').oninput=e=>{ const v=+e.target.value; skinMat.opacity=v; skinG.visible=v>0.001; };
+let skinBase=0.08; document.getElementById('skinOp').oninput=e=>{ skinBase=+e.target.value; skinG.visible=skinBase>0.001; };
 document.getElementById('xray').onchange=e=>{ xray=e.target.checked; applyOpacity(); };
 document.getElementById('spin').onchange=e=>{ controls.autoRotate=e.target.checked; };
+document.getElementById('hq').checked=HQ;
+document.getElementById('hq').onchange=e=>{ HQ=e.target.checked; try{ localStorage.setItem('anat-hq',HQ?'1':'0'); }catch(err){} paint(); };
 const side=document.getElementById('side');
 const appEl=document.getElementById('app');
 document.getElementById('menuToggle').onclick=()=>{ if(innerWidth>820) appEl.classList.remove('collapsed'); else side.classList.toggle('open'); };
@@ -693,7 +745,8 @@ function answerName(o,b){ if(quiz.answered) return; const ok=o.id===quiz.target.
 function answerLocate(id){ if(quiz.answered) return; const ok=id===quiz.target.id; reveal(ok, ok?'':`클릭한 곳은 '${esc(enName(parts[id]))}'예요.`); focusPart(quiz.target); }
 
 /* ---------------- 루프 ---------------- */
-function resize(){ const w=canvas.clientWidth, h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
+function resize(){ const w=canvas.clientWidth, h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix();
+  const pr=renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(w,h); }
 new ResizeObserver(resize).observe(canvas); resize();
 const clock=new THREE.Clock();
 function loop(){
@@ -704,7 +757,7 @@ function loop(){
     const i=0.55+0.3*Math.sin(clock.getElapsedTime()*5);
     quiz.target.meshes.forEach(m=>{ m.material.emissive.setHex(0xfbbf24); m.material.emissiveIntensity=i; });
   }
-  controls.update(); renderer.render(scene,camera);
+  skinMat.opacity=skinBase*(HQ?0.4:1); controls.update(); if(HQ) composer.render(); else renderer.render(scene,camera);
 }
 loop();
 load().then(()=>{ buildRegions(); buildList(); updateVisibility(); paint(); openHash(); }).catch(err=>{ document.getElementById('ldText').textContent='모델을 불러오지 못했어요: '+err.message; console.error(err); });
