@@ -71,9 +71,11 @@ button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
 .seg button.on{background:var(--acc);color:#1a1205;font-weight:700}
 .seg button:hover:not(.on){background:rgba(255,255,255,.06)}
 #backBtn button{color:var(--acc);font-weight:700}
-#menuBtn,#panelBtn{display:none}
-#panel{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;z-index:5}
-#tabs{display:flex;border-bottom:1px solid var(--line)}
+#menuBtn{display:none}
+#panel{position:absolute;right:0;top:0;bottom:0;width:min(340px,92vw);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;z-index:7;transform:translateX(105%);transition:transform .25s;box-shadow:0 0 40px rgba(0,0,0,.6)}
+#panel.open{transform:none}
+#pclose{position:absolute;right:6px;top:6px;font-size:18px;color:var(--muted);padding:4px 9px;z-index:2}
+#tabs{display:flex;border-bottom:1px solid var(--line);padding-right:34px}
 #tabs button{flex:1;padding:11px 4px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
 #tabs button.on{color:#fff;border-bottom-color:var(--acc)}
 #pbody{flex:1;overflow:auto;padding:14px 16px 24px;font-size:13.5px;line-height:1.65}
@@ -121,11 +123,9 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 .muted{color:var(--muted);font-size:12px}
 .note{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.6}
 @media (max-width:900px){
-  #panel{position:absolute;right:0;top:0;bottom:0;width:min(340px,92vw);transform:translateX(100%);transition:.25s}
-  #panel.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.6)}
   #side{position:absolute;left:0;top:0;bottom:0;width:min(290px,86vw);transform:translateX(-100%);transition:.25s}
   #side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.6)}
-  #menuBtn,#panelBtn{display:inline-flex!important}
+  #menuBtn{display:inline-flex!important}
   #ttl{font-size:16px;width:100%;order:-1}
   .seg button{padding:5px 7px;font-size:11.5px}
   #top{gap:5px;top:6px;left:6px;right:6px}
@@ -157,12 +157,13 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
       <div class="seg" id="viewSeg"></div>
       <div class="seg" id="presetSeg"></div>
       <div class="seg" id="labSeg"></div>
-      <div class="seg" id="panelBtn"><button onclick="document.getElementById('panel').classList.toggle('open')">정보·퀴즈 ☰</button></div>
+      <div class="seg" id="panelBtn"><button onclick="document.getElementById('panel').classList.toggle('open')">구조물 목록 · 구멍표 · 퀴즈</button></div>
     </div>
     <div id="load">불러오는 중…</div>
     <div id="info"></div>
   </main>
   <aside id="panel">
+    <button id="pclose" onclick="document.getElementById('panel').classList.remove('open')">×</button>
     <div id="tabs"><button data-t="info" class="on">정보</button><button data-t="lm">구조물</button><button data-t="for">구멍표</button><button data-t="quiz">퀴즈</button></div>
     <div id="pbody"></div>
   </aside>
@@ -216,7 +217,7 @@ async function geom(id){ if(geoCache[id]) return geoCache[id]; const c=MS[id]; c
   return geoCache[id]=mkGeo(ab,0,c.vc,c.vc*6,c.ic,c.lo,c.sc,c.i32); }
 
 /* ---------- state ---------- */
-const S={mode:'overview',item:null,side:'R',sel:null,selPin:null,labels:'on',typeF:'all',tab:'info',quiz:null,preset:null,colorBones:false,ovSel:null,open:{}};
+const S={mode:'overview',item:null,side:'R',sel:null,selPin:null,labels:'on',typeF:'all',tab:'lm',quiz:null,preset:null,colorBones:false,ovSel:null,open:{}};
 let meshes=[], pins=[], box=new THREE.Box3(), center=new THREE.Vector3(), radius=100, ovMeshes=[], ovLoaded=false;
 const raycaster=new THREE.Raycaster();
 function variant(){const it=S.item; return it.var[S.side]||it.var['']||Object.values(it.var)[0];}
@@ -281,6 +282,7 @@ async function loadItem(id,side,keepView){
   NAV.forEach((c,ci)=>c.subs.forEach((s,si)=>{ if(s.items.includes(id)){ S.open['c'+ci]=true; S.open['s'+ci+'_'+si]=true; } }));
   renderList(); renderTop(); renderPanel();
   if(!keepView) setView(defaultView(it)); else dirty=true;
+  if(!S.quiz) showBoneInfo();
   if(S.quiz && S.quiz.mode!=='lr') nextQuiz();
   setHash();
 }
@@ -445,7 +447,7 @@ $('#backBtn button').onclick=()=>enterOverview();
 
 function renderTop(){
   const ov=S.mode==='overview';
-  $('#backBtn').style.display=ov?'none':'inline-flex';
+  $('#backBtn').style.display=ov?'none':'inline-flex'; $('#panelBtn').style.display=ov?'none':'inline-flex'; if(ov) $('#panel').classList.remove('open');
   if(ov){
     $('#ttl').innerHTML='Skeleton<small>전신 뼈대 · 뼈를 누르면 이름과 설명이 나와요</small>';
     $('#sideSeg').style.display='none'; $('#presetSeg').style.display='none'; $('#labSeg').style.display='none';
@@ -523,6 +525,16 @@ function showInfo(k){
   ${l.pas?`<div class="row pass"><b>통과</b>${esc(l.pas)}</div>`:''}
   ${l.att?`<div class="row"><b>부착</b>${esc(l.att)}</div>`:''}
   ${l.c?`<div class="row c"><b>임상·포인트</b>${esc(l.c)}</div>`:''}`;
+  el.style.display='block';
+}
+function showBoneInfo(){
+  const it=S.item, info=it.info||{}; const el=$('#info');
+  el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button>
+  <div class="nm">${esc(it.en)}</div><div class="alt">${esc(itemKo(it))}</div>
+  ${info.d?`<div class="row">${esc(info.d)}</div>`:''}
+  ${info.lr?`<div class="row"><b>좌우 구분법</b>${esc(info.lr)}</div>`:''}
+  ${info.tip?`<div class="row c"><b>팁</b>${esc(info.tip)}</div>`:''}
+  <div class="row" style="color:var(--muted);font-size:12px">핀을 누르면 구조물 설명이 나와요. 파란 핀 = 구멍·관, 빨간 핀 = 돌기·면·선</div>`;
   el.style.display='block';
 }
 function hideInfo(){ $('#info').style.display='none'; }
@@ -608,6 +620,7 @@ function loop(now){ requestAnimationFrame(loop); stepAnim(now); ctl.update();
 resize();
 if(!(await fromHash())) await enterOverview();
 requestAnimationFrame(loop);
+addEventListener('hashchange',async()=>{ if(!(await fromHash())) enterOverview(); });
 </script>
 </body>
 </html>
