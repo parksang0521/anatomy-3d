@@ -41,6 +41,7 @@
   - https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html
   - 대부분의 구조물은 BodyParts3D 4.0을 브라우저용으로 경량화한 [ashemag/human-atlas](https://github.com/ashemag/human-atlas)(MIT)의 데이터를 사용
   - 뼈·근육·장기 약 600개는 같은 구조물의 BodyParts3D 3.0 고해상도 메쉬를 4.0 좌표에 정합(ICP)해 교체했고, 대응이 없는 저해상도 구조물은 세분화·스무딩 처리 (`build/hires.py`)
+  - 혈관은 원본 위치를 유지한 채 평활화하고, 원본 데이터에서 떨어져 있던 일부 혈관(속목동맥 목 부분, 뒤정강정맥–오금정맥, 콩팥정맥–아래대정맥 등)은 연결관으로 이음 (`build/vfix.py`)
   - 허파 5엽과 간은 BodyParts3D 3.0 데이터([Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) 사본)를 4.0 좌표에 맞춰 정렬·경량화해 추가
   - 변경 사항: 구조물 선별, 메쉬 단순화, 좌표 양자화, meshoptimizer 압축, 계통별 재구성, 한국어 명칭 부여
 - 척수·말초신경·대부분의 뇌신경: 원본 데이터에 없어, 주변 뼈·혈관·근육 메쉬에서 계산한 기준점으로 경로를 만든 근사 모델 (`build/nerves.py`)

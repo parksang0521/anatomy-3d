@@ -9,7 +9,7 @@ P = lambda *a: np.array(a, float)
 OUT = []   # dict(en, ko, key, grp, V, F)
 
 # ---------------- 튜브 ----------------
-def smooth(pts, step=0.003, s=0.0):
+def smooth(pts, step=0.0022, s=0.0):
     pts = np.array(pts, float)
     keep = [0]
     for i in range(1, len(pts)):
@@ -51,7 +51,10 @@ def tube(pts, r, sides=8):
         F.append((base, (j + 1) % sides, j)); F.append((base + 1, last + j, last + (j + 1) % sides))
     return V, np.array(F)
 
-def add(en, ko, key, grp, pts, r, sides=8):
+def add(en, ko, key, grp, pts, r, sides=None):
+    if sides is None:
+        rm = float(np.max(r))
+        sides = 14 if rm >= 0.0018 else 12 if rm >= 0.0010 else 10
     V, F = tube(pts, r, sides)
     for o in OUT:
         if o['en'] == en:

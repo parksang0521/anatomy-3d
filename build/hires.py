@@ -12,8 +12,9 @@ for l in open('/tmp/stlnames'):
     fid, nm = l.rstrip('\n').split('\t'); NAMES.setdefault(nm.lower(), fid)
 FILES = {f.replace('.stl', '').replace('nsn', ''): f for f in os.listdir(D)}
 OFF = np.array([0.0, 0.0600, -0.0985])
+# 혈관은 교체하지 않음: 정합 시 축 방향으로 밀려 분기부가 끊어짐 → vfix.py에서 평활화
 RATIO = {'skeletal': 0.30, 'muscular': 0.055, 'digestive': 0.5, 'respiratory': 0.4, 'cardio': 0.4, 'urinary': 0.6,
-         'endocrine': 0.6, 'reproductive': 0.8, 'arterial': 0.5, 'venous': 0.5}
+         'endocrine': 0.6, 'reproductive': 0.8}
 CAP = {'skeletal': 30000, 'muscular': 12000}
 SMOOTH_SYS = {'skeletal', 'muscular', 'digestive', 'respiratory', 'cardio', 'urinary', 'endocrine', 'reproductive', 'nervous'}
 

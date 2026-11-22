@@ -295,8 +295,14 @@ import nerves as NV
 for o in NV.build():
     put(o['en'], dict(sys='nerves', ko=o['ko'], old='', key=o['key'], grp=o['grp']), o['V'], o['F'].reshape(-1).astype(np.int64))
 
-import hires
+import hires, pickle, copy
+if os.environ.get('DUMPV'):
+    pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items() if v['meta']['sys'] in ('arterial','venous','nerves')}, open('/tmp/vpre.pkl','wb'))
 hires.upgrade(structs)
+import vfix
+vfix.fix(structs)
+if os.environ.get('DUMPV'):
+    pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items() if v['meta']['sys'] in ('arterial','venous','nerves')}, open('/tmp/vpost.pkl','wb')); sys.exit(0)
 import writer
 # ---------- 출력 ----------
 allp = np.concatenate([np.concatenate(s['P']) for s in structs.values()])
