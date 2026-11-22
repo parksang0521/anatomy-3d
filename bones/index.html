@@ -235,7 +235,7 @@ async function loadOverviewMeshes(){
 }
 let ovCenter=new THREE.Vector3(), ovRadius=900, ovH=1700;
 async function enterOverview(keepCam){
-  S.mode='overview'; S.item=null; S.quiz=null; S.sel=null; S.preset=null; clipPlane.constant=1e5;
+  S.mode='overview'; S.item=null; if(S.quiz&&!S.quiz.setup) S.quiz=null; S.sel=null; S.preset=null; clipPlane.constant=1e5;
   root.visible=false; pinG.visible=false; ovRoot.visible=true; $('#labels').innerHTML=''; pins=[]; hideInfo();
   $('#load').style.display='block'; $('#load').textContent='전신 뼈대 불러오는 중… (약 1MB)';
   await loadOverviewMeshes(); $('#load').style.display='none';
@@ -284,8 +284,8 @@ async function loadItem(id,side,keepView){
   NAV.forEach((c,ci)=>c.subs.forEach((s,si)=>{ if(s.items.includes(id)){ S.open['c'+ci]=true; S.open['s'+ci+'_'+si]=true; } }));
   renderList(); renderTop(); renderPanel();
   if(!keepView) setView(defaultView(it)); else dirty=true;
-  if(!S.quiz) showBoneInfo();
-  if(S.quiz && S.quiz.mode!=='lr') nextQuiz();
+  if(!S.quiz||S.quiz.setup) showBoneInfo();
+  if(S.quiz && !S.quiz.setup && !S.quiz.busy && S.quiz.scope==='cur') nextQuiz();
   setHash();
 }
 function defaultView(it){ if(it.id==='occipital') return 'inf';
@@ -308,7 +308,7 @@ function buildPins(){
   applyFilter();
 }
 function applyFilter(){ pins.forEach(p=>{p.filtered=!(S.typeF==='all'||(S.typeF==='f'?p.t==='f':p.t!=='f')); p.mesh.visible=!p.filtered&&!p.hiddenByPreset;}); occDirty=true; dirty=true; }
-function onPinClick(i){ if(S.quiz&&S.quiz.mode==='find'){quizAnswerFind(i);return;} selectKey(pins[i].k,i); }
+function onPinClick(i){ if(S.quiz&&!S.quiz.setup&&S.quiz.mode==='blank'&&!S.quiz.done) return; if(S.quiz&&!S.quiz.setup&&S.quiz.mode==='find'){quizAnswerFind(i);return;} selectKey(pins[i].k,i); }
 function selectKey(k,pi,fly=true){
   S.sel=k; const ps=pins.filter(p=>p.k===k&&p.mesh.visible);
   let p=pi!=null?pins[pi]:(ps.find(q=>!q.occ)||ps[0]||pins.find(q=>q.k===k)); if(!p){showInfo(k);return;} S.selPin=p.i;
@@ -316,13 +316,14 @@ function selectKey(k,pi,fly=true){
   if(fly) flyTo(p.pos);
   showInfo(k); if(S.tab==='lm') renderPanel(); setHash(); dirty=true;
 }
-function flyTo(pt){
+function flyTo(pt,far){
   const cur=cam.position.clone().sub(ctl.target).normalize();
   raycaster.set(pt.clone().addScaledVector(cur,radius*3),cur.clone().negate()); raycaster.far=radius*3-1; raycaster.firstHitOnly=false;
   const occ=raycaster.intersectObjects(meshes.filter(m=>m.visible),false).some(h=>!clipped(h.point));
   let dir=cur;
   if(occ){ const out=pt.clone().sub(center); if(radius>60) out.z=0; if(out.length()<1e-3) out.copy(cur); out.normalize(); dir=out; if(Math.abs(dir.z)<0.9) cam.up.set(0,0,1); }
   const dist=radius>80?radius*1.25:Math.min(Math.max(radius*1.1,45),radius*2.4);
+  if(far){ const tg=center.clone().lerp(pt,0.35); animCam(tg, tg.clone().addScaledVector(dir,radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.05)); return; }
   animCam(pt.clone(), pt.clone().addScaledVector(dir,dist*1.9));
 }
 let anim=null;
@@ -369,16 +370,17 @@ function updateLabels(now){
     if(doOcc){ if(v.z>=1||x<-60||x>W+60||y<-30||y>H+30) p.occ=true; else {
       const dir=p.pos.clone().sub(camPos); const d=dir.length(); dir.normalize(); raycaster.set(camPos,dir); raycaster.far=d-Math.max(1.5,radius*0.02);
       raycaster.firstHitOnly=S.preset!=='int'; p.occ=raycaster.intersectObjects(vis,false).some(h=>!clipped(h.point)); } }
-    const isSel=p.k===S.sel, isQ=S.quiz&&S.quiz.target===p.k;
+    const QZ=S.quiz&&!S.quiz.setup?S.quiz:null; const isSel=p.k===S.sel, isQ=!!(QZ&&QZ.target===p.k&&QZ.mode==='blank'&&!QZ.done);
     let show=(!p.occ||(isSel&&p.i===S.selPin)) && v.z<1 && x>-50&&x<W+50&&y>-20&&y<H+20;
-    if(S.quiz && ['name','find','lr'].includes(S.quiz.mode)) { if(!(isQ&&S.quiz.mode==='name')) show=false; }
+    if(isQ) show=v.z<1;
+    else if(QZ && (QZ.mode==='find'||QZ.mode==='lr') && !QZ.done) show=false;
     else if(S.labels!=='on' && !isSel) show=false;
     const rr=[x+6,y-16,x+6+p.w,y+16];
     if(show && !isSel && !isQ){ if(placed.some(q=>!(rr[2]<q[0]||rr[0]>q[2]||rr[3]<q[1]||rr[1]>q[3]))) show=false; else placed.push(rr); }
     else if(show) placed.push(rr);
     p.el.style.display=show?'block':'none';
     if(show){ p.el.style.left=x+'px'; p.el.style.top=y+'px'; p.el.classList.toggle('sel',isSel);
-      const q=!!(isQ&&S.quiz.mode==='name'); p.el.classList.toggle('q',q);
+      const q=isQ; p.el.classList.toggle('q',q);
       if(q){ if(p.el.textContent!=='?') p.el.textContent='?'; } else if(p.el.textContent==='?') p.el.innerHTML=labelHTML(LM[p.k]); }
   }
 }
@@ -396,8 +398,8 @@ cv.addEventListener('pointerup',e=>{ if(!down) return; const moved=Math.hypot(e.
   if(ph && (!mh || ph.distance<mh.distance+2)){ onPinClick(ph.object.userData.i); return; }
   if(mh){
     let best=null,bd=1e9; pins.forEach((p,i)=>{ if(!p.mesh.visible||p.occ) return; const d=p.pos.distanceTo(mh.point); if(d<bd){bd=d;best=i;} });
-    if(best!=null && bd<Math.max(4,radius*0.05) && !(S.quiz&&S.quiz.mode!=='find')){ onPinClick(best); return; }
-    if(meshes.length>1 && !S.quiz){
+    if(best!=null && bd<Math.max(4,radius*0.05) && !(S.quiz&&!S.quiz.setup&&S.quiz.mode!=='find')){ onPinClick(best); return; }
+    if(meshes.length>1 && !(S.quiz&&!S.quiz.setup)){
       const id=mh.object.userData.id; const o=ovById[id]; if(!o) return; const {it,sd}=ovItem(o);
       const el=$('#info'); el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button><div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}</div>${it.id!==S.item.id?`<div class="acts"><button class="go" id="goBone">따로 보기 →</button></div>`:''}`;
       el.style.display='block'; const g=$('#goBone'); if(g) g.onclick=()=>openItem(it.id,sd||null);
@@ -447,12 +449,11 @@ function renderList(){
 $('#q').addEventListener('input',renderList);
 $('#backBtn button').onclick=()=>enterOverview();
 $('#quizBtn button').onclick=async()=>{
-  if(S.mode==='overview'){ S.quiz={mode:'lr',ok:0,n:0,back:null}; S.tab='quiz'; await nextQuiz(); $('#panel').classList.add('open'); renderPanel(); return; }
-  S.tab='quiz'; $('#panel').classList.add('open'); renderPanel(); };
+  S.tab='quiz'; if(!S.quiz) S.quiz={mode:'blank',scope:S.mode==='bone'?'cur':'all',input:'choice',setup:true}; $('#panel').classList.add('open'); renderPanel(); };
 
 function renderTop(){
   const ov=S.mode==='overview';
-  $('#backBtn').style.display=ov?'none':'inline-flex'; $('#panelBtn').style.display=ov?'none':'inline-flex'; if(ov&&!S.quiz) $('#panel').classList.remove('open'); $('#quizBtn button').textContent=ov?'🎯 좌우 구분 퀴즈':'🎯 퀴즈';
+  $('#backBtn').style.display=ov?'none':'inline-flex'; $('#panelBtn').style.display=ov?'none':'inline-flex'; if(ov&&!(S.tab==='quiz'&&$('#panel').classList.contains('open'))) $('#panel').classList.remove('open'); $('#quizBtn button').textContent='🎯 퀴즈';
   if(ov){
     $('#ttl').innerHTML='Skeleton<small>전신 뼈대 · 뼈를 누르면 이름과 설명이 나와요</small>';
     $('#sideSeg').style.display='none'; $('#presetSeg').style.display='none'; $('#labSeg').style.display='none';
@@ -460,9 +461,9 @@ function renderTop(){
     $('#viewSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{setView(b.dataset.v);}); return;
   }
   const it=S.item; const v=variant(); $('#labSeg').style.display='inline-flex';
-  if(S.quiz&&S.quiz.mode==='lr') $('#ttl').innerHTML='Left or right?<small>좌우 구분 퀴즈 — 어느 쪽 뼈일까?</small>';
+  if(S.quiz&&!S.quiz.setup&&S.quiz.mode==='lr') $('#ttl').innerHTML='Left or right?<small>좌우 구분 퀴즈 — 어느 쪽 뼈일까?</small>';
   else $('#ttl').innerHTML=esc(it.en)+(it.var.R?` <span class="sd">${S.side==='R'?'Right · 오른쪽':'Left · 왼쪽'}</span>`:'')+`<small>${esc(itemKo(it))}</small>`;
-  const ss=$('#sideSeg'); ss.style.display=it.var.R&&!(S.quiz&&S.quiz.mode==='lr')?'inline-flex':'none';
+  const ss=$('#sideSeg'); ss.style.display=it.var.R&&!(S.quiz&&!S.quiz.setup&&S.quiz.mode==='lr')?'inline-flex':'none';
   ss.innerHTML=`<button class="${S.side==='R'?'on':''}" data-s="R">오른쪽</button><button class="${S.side==='L'?'on':''}" data-s="L">왼쪽</button>`;
   ss.querySelectorAll('button').forEach(b=>b.onclick=()=>loadItem(it.id,b.dataset.s,true));
   const views=it.var.R?['ant','post','lat','med','sup','inf']:['ant','post','lat','sup','inf'];
@@ -480,10 +481,11 @@ function renderTop(){
 }
 
 /* ---------- 오른쪽 패널 ---------- */
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; if(S.tab!=='quiz'&&S.quiz) stopQuiz(); renderPanel(); });
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; if(S.tab!=='quiz'&&S.quiz){ if(S.quiz.setup) S.quiz=null; else stopQuiz(); } renderPanel(); });
 function uniqKeys(){ if(!S.item) return []; const seen=new Set(), out=[]; variant().pts.forEach(p=>{ if(!seen.has(p[0])){seen.add(p[0]); out.push(p[0]);} }); return out; }
 function renderPanel(){
   const b=$('#pbody');
+  if(S.mode==='overview'&&S.tab==='quiz'){ $('#tabs').style.display='none'; renderQuiz(); return; }
   if(S.mode==='overview'){
     $('#tabs').style.display='none';
     let h=`<div class="card"><h3>Skeleton · 전신 뼈대</h3><p>성인 뼈대는 약 206개의 뼈로 이뤄진다. 뼈를 누르면 확대되면서 이름과 설명이 나오고, <b style="color:var(--acc)">따로 보기</b>를 누르면 그 뼈만 크게 띄워 구조물·구멍·통과하는 신경과 혈관을 자세히 볼 수 있다.</p></div><div class="lmg">CATEGORIES · 분류</div>`;
@@ -547,45 +549,97 @@ function hideInfo(){ $('#info').style.display='none'; }
 /* ---------- 퀴즈 ---------- */
 const PAIRED=ITEMS.filter(it=>it.var.R && it.info && it.info.lr);
 const optHTML=k=>`${esc(enS(LM[k]))}<span class="ko">${esc(koS(LM[k]))}</span>`;
+const QMODES=[['blank','빈칸 채우기','이름표 하나가 빈칸(?) — 무슨 구조물?'],['find','위치 찾기','이름을 보고 3D에서 위치를 클릭'],['pass','통과 구조물','지나가는 신경·혈관 → 어느 구멍?'],['lr','좌우 구분','무작위 방향의 뼈 — 왼쪽? 오른쪽?']];
+const keysOf=it=>{ const s=new Set(); Object.values(it.var).forEach(v=>v.pts.forEach(p=>s.add(p[0]))); return [...s]; };
+function scopeItems(q){
+  let ids;
+  if(q.scope==='cur') ids=[S.item.id];
+  else if(q.scope==='all') ids=ITEMS.map(i=>i.id);
+  else { const c=NAV[+q.scope.slice(1)]; ids=[...new Set(c.subs.flatMap(s=>s.items))]; }
+  let its=ids.map(i=>byId[i]).filter(Boolean);
+  if(q.mode==='lr') its=its.filter(it=>it.var.R&&it.info&&it.info.lr);
+  else if(q.mode==='pass') its=its.filter(it=>keysOf(it).filter(k=>LM[k].t==='f'&&LM[k].pas).length>=2);
+  else its=its.filter(it=>keysOf(it).filter(k=>!k.startsWith('vname_')).length>=4);
+  if(q.scope!=='cur'){ const kinds={}; its=its.filter(it=>{ const k=it.kind||it.id; if(['cervical','thoracic','lumbar','rib'].includes(k)){ kinds[k]=(kinds[k]||0)+1; return kinds[k]<=2||Math.random()<0.35; } return true; }); }
+  return its;
+}
+const norm=s=>String(s||'').toLowerCase().replace(/\(.*?\)/g,' ').replace(/[\s\-·,.'’/]+/g,'');
+function lev(a,b){ const m=a.length,n=b.length; if(Math.abs(m-n)>2) return 9; const d=Array.from({length:m+1},(_,i)=>[i]); for(let j=1;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[m][n]; }
+function answers(k){ const l=LM[k]; const out=new Set();
+  [l.e,enS(l),l.n,koS(l),...String(l.o||'').split(/[(),]/),...String(l.e).split(' / '),...String(l.n).split(/[()]/)].forEach(s=>{ const t=norm(s); if(t.length>=2) out.add(t); });
+  return [...out]; }
+function checkTyped(k,input){ const a=norm(input); if(!a) return false; return answers(k).some(t=>t===a||(t.length>=7&&/^[a-z]+$/.test(t)&&lev(t,a)<=1)); }
+
 function renderQuiz(){
   const b=$('#pbody'); const q=S.quiz;
-  const hasF=uniqKeys().some(k=>LM[k].t==='f'&&LM[k].pas);
-  let h=`<div class="qq" style="margin-top:0">Quiz · 퀴즈</div><div class="muted">이름 맞히기·위치 찾기·통과 구조물은 지금 보고 있는 뼈(${esc(S.item.en)})에서, 좌우 구분은 모든 짝뼈에서 무작위로 나옵니다.</div><div style="margin:8px 0">`+
-    [['name','이름 맞히기'],['find','위치 찾기'],...(hasF?[['pass','통과 구조물']]:[]),['lr','좌우 구분']].map(([m,n])=>`<button class="ghost${q&&q.mode===m?' on':''}" data-m="${m}">${n}</button>`).join('')+'</div>';
-  if(q) h+=`<div class="card"><span class="score">${q.ok} / ${q.n}</span><div id="qbody"></div></div><button class="ghost" id="qstop">퀴즈 끝내기</button>`;
+  const inBone=S.mode==='bone'&&S.item;
+  let h=`<div class="qq" style="margin-top:0">Quiz · 퀴즈</div>`;
+  if(!q||q.setup){
+    const st=q||{mode:'blank',scope:inBone?'cur':'all',input:'choice'}; S.quiz=null; S._qs=st;
+    h+=`<div class="lmg">문제 유형</div>`+QMODES.map(([m,n,d])=>`<button class="qbtn${st.mode===m?' ok':''}" data-m="${m}"><b>${n}</b><span class="ko">${d}</span></button>`).join('');
+    if(st.mode!=='lr'||true){ h+=`<div class="lmg">범위</div><div>`+(inBone?`<button class="ghost${st.scope==='cur'?' on':''}" data-sc="cur">지금 보는 뼈</button>`:'')+`<button class="ghost${st.scope==='all'?' on':''}" data-sc="all">전체 뼈 무작위</button>`+NAV.map((c,i)=>`<button class="ghost${st.scope==='c'+i?' on':''}" data-sc="c${i}">${esc(c.en)}</button>`).join('')+`</div>`; }
+    if(st.mode==='blank') h+=`<div class="lmg">답하는 방식</div><div><button class="ghost${st.input==='choice'?' on':''}" data-in="choice">4지선다</button><button class="ghost${st.input==='type'?' on':''}" data-in="type">직접 입력 (영문·한글)</button></div>`;
+    h+=`<button class="big" id="qgo">시작하기</button>`;
+    b.innerHTML=h;
+    b.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>{ st.mode=x.dataset.m; if(st.mode==='lr'&&st.scope==='cur') st.scope='all'; S.quiz=null; S._qs=st; renderQuizSetup(st); });
+    b.querySelectorAll('[data-sc]').forEach(x=>x.onclick=()=>{ st.scope=x.dataset.sc; renderQuizSetup(st); });
+    b.querySelectorAll('[data-in]').forEach(x=>x.onclick=()=>{ st.input=x.dataset.in; renderQuizSetup(st); });
+    $('#qgo').onclick=()=>startQuiz(st);
+    return;
+  }
+  const mn=QMODES.find(x=>x[0]===q.mode)[1];
+  h+=`<div class="card"><span class="score">${q.ok} / ${q.n}</span><div class="muted" style="margin-bottom:2px">${mn}${q.scope!=='cur'&&q.mode!=='lr'&&S.item?' · '+esc(S.item.en):''}</div><div id="qbody"></div></div><button class="ghost" id="qstop">퀴즈 끝내기</button><button class="ghost" id="qset">유형 바꾸기</button>`;
   b.innerHTML=h;
-  b.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>startQuiz(x.dataset.m));
-  if(q){ $('#qstop').onclick=stopQuiz; drawQ(); }
+  $('#qstop').onclick=stopQuiz; $('#qset').onclick=()=>{ const st={mode:q.mode,scope:q.scope,input:q.input}; endQuizState(q); renderQuizSetup(st); };
+  drawQ();
 }
-function startQuiz(m){ S.quiz={mode:m,ok:0,n:0}; hideInfo(); if(m==='lr') S.quiz.back={id:S.item.id,side:S.side}; nextQuiz(); renderQuiz(); }
-function stopQuiz(){ const q=S.quiz; S.quiz=null; if(q&&q.mode==='lr'){ if(q.back) loadItem(q.back.id,q.back.side); else { $('#panel').classList.remove('open'); S.tab='lm'; enterOverview(); return; } } renderPanel(); renderTop(); dirty=true; }
+function renderQuizSetup(st){ S.quiz={...st,setup:true}; renderQuiz(); }
+function endQuizState(q){ S.quiz=null; pins.forEach(p=>{p.mesh.material.color.set(p.t==='f'?0x38bdf8:0xf87171); p.mesh.scale.setScalar(pinR());}); renderTop(); dirty=true; }
+function startQuiz(st){
+  const fromOv=S.mode!=='bone';
+  S.quiz={mode:st.mode,scope:st.scope,input:st.input||'choice',ok:0,n:0,fromOv,back:S.mode==='bone'?{id:S.item.id,side:S.side}:null};
+  hideInfo(); nextQuiz().then(()=>renderQuiz());
+}
+function stopQuiz(){ const q=S.quiz; S.quiz=null; S._qs=null;
+  if(q&&!q.setup){ if(q.fromOv){ $('#panel').classList.remove('open'); S.tab='lm'; enterOverview(); return; }
+    if(q.back && (q.back.id!==S.item.id||q.back.side!==S.side)) loadItem(q.back.id,q.back.side); }
+  endQuizState(q||{}); renderPanel(); }
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 async function nextQuiz(){
-  const q=S.quiz; if(!q) return; q.done=false; q.fb='';
+  const q=S.quiz; if(!q||q.setup||q.busy) return; q.done=false; q.fb=''; q.fbc=''; q.pick=null; q.typed='';
+  if(q.scope!=='cur'||q.mode==='lr'){
+    const pool=scopeItems(q); if(!pool.length){ q.target=null; drawQ(); return; }
+    const it=pick(pool); const sd=it.var.R?(Math.random()<.5?'R':'L'):null;
+    q.busy=true; await loadItem(it.id,sd,q.mode!=='lr'?false:true); q.busy=false; S.quiz=q;
+  }
   if(q.mode==='lr'){
-    const it=pick(PAIRED); const sd=Math.random()<.5?'R':'L'; q.answer=sd; q.itemId=it.id;
-    await loadItem(it.id,sd,true); S.quiz=q;
+    q.answer=S.side; q.itemId=S.item.id;
     const dirs=[[0,-1,0],[0,1,0],[1,0,0],[-1,0,0],[0.6,-0.8,0],[-0.6,-0.8,0],[0.5,0.7,0.5],[0,0,1]];
     const d=new THREE.Vector3(...pick(dirs)).normalize(); cam.up.set(0,0,1);
-    const dist=radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.05; ctl.target.copy(center); cam.position.copy(center).addScaledVector(d,dist); ctl.update();
+    const dist=radius/Math.sin(THREE.MathUtils.degToRad(cam.fov/2))*1.1; anim=null; ctl.target.copy(center); cam.position.copy(center).addScaledVector(d,dist); ctl.update();
     renderTop(); drawQ(); dirty=true; return;
   }
-  let ks=uniqKeys().filter(k=>pins.some(p=>p.k===k&&!p.filtered&&!p.hiddenByPreset));
+  let ks=uniqKeys().filter(k=>!k.startsWith('vname_')&&pins.some(p=>p.k===k&&!p.filtered&&!p.hiddenByPreset));
   if(q.mode==='pass') ks=ks.filter(k=>LM[k].t==='f'&&LM[k].pas);
   if(ks.length<2){ q.target=null; drawQ(); return; }
-  let t=pick(ks); while(t===q.target) t=pick(ks);
+  let t=pick(ks); if(ks.length>1) while(t===q.target) t=pick(ks);
   q.target=t; S.sel=null;
-  pins.forEach(p=>{const on=p.k===t&&q.mode==='name'; p.mesh.material.color.set(on?0xa78bfa:(p.t==='f'?0x38bdf8:0xf87171)); p.mesh.scale.setScalar(pinR()*(on?1.8:1)); p.mesh.material.depthTest=true;});
-  const pool=(q.mode==='pass'?ks:uniqKeys()).filter(k=>k!==t); const same=pool.filter(k=>LM[k].t===LM[t].t);
-  q.opts=shuffle([t,...shuffle(same.length>=3?same:pool).slice(0,3)]);
-  if(q.mode==='name'){ const p=pins.find(p=>p.k===t); flyTo(p.pos); }
-  hideInfo(); drawQ(); occDirty=true; dirty=true;
+  pins.forEach(p=>{const on=p.k===t&&q.mode==='blank'; p.mesh.material.color.set(on?0xa78bfa:(p.t==='f'?0x38bdf8:0xf87171)); p.mesh.scale.setScalar(pinR()*(on?1.8:1)); p.mesh.material.depthTest=!on; p.mesh.renderOrder=on?5:0;});
+  const pool=(q.mode==='pass'?ks:uniqKeys().filter(k=>!k.startsWith('vname_'))).filter(k=>k!==t);
+  const same=pool.filter(k=>LM[k].t===LM[t].t); const extra=Object.keys(LM).filter(k=>k!==t&&LM[k].t===LM[t].t&&!k.startsWith('vname_'));
+  let opts=shuffle(same.length>=3?same:pool).slice(0,3); while(opts.length<3){ const x=pick(extra); if(!opts.includes(x)) opts.push(x); }
+  q.opts=shuffle([t,...opts]);
+  if(q.mode==='blank'){ const ps=pins.filter(p=>p.k===t); const p=ps.find(p=>!p.occ)||ps[0]; S.selPin=p.i; flyTo(p.pos,true); }
+  hideInfo(); renderTop(); drawQ(); occDirty=true; dirty=true;
 }
+function finishQ(ok,msg){ const q=S.quiz; q.n++; if(ok) q.ok++; q.done=true; q.fbc=ok?'ok':'no'; q.fb=msg;
+  selectKey(q.target,null,q.mode!=='blank'); renderQuiz(); }
 function drawQ(){
   const q=S.quiz; const el=$('#qbody'); if(!q||!el) return;
-  const next=q.done?'<button class="big" id="qn">다음 문제</button>':'';
-  if(q.mode==='lr'){ const it=byId[q.itemId];
+  const next=q.done?'<button class="big" id="qn">다음 문제 →</button>':'';
+  if(q.mode==='lr'){ const it=byId[q.itemId]; if(!it){el.innerHTML='';return;}
     el.innerHTML=`<div class="qq">이 ${esc(it.en)}는 왼쪽? 오른쪽?</div><div class="muted">${esc(itemKo(it))} — 돌려 보면서 판단해 보세요.</div>
     <div class="lr2"><button data-a="L">왼쪽 Left</button><button data-a="R">오른쪽 Right</button></div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
     el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(q.done) return; q.n++; const ok=b.dataset.a===q.answer; if(ok) q.ok++; q.done=true;
@@ -593,21 +647,34 @@ function drawQ(){
       renderTop(); renderQuiz(); });
     if(q.done) $('#qn').onclick=()=>nextQuiz().then(renderQuiz);
     return; }
-  if(!q.target){ el.innerHTML='<div class="muted">이 뼈에는 출제할 항목이 부족합니다. 다른 뼈를 고르세요.</div>'; return; }
+  if(!q.target){ el.innerHTML='<div class="muted">이 범위에서는 낼 문제가 부족해요. "유형 바꾸기"에서 범위를 넓혀 보세요.</div>'; return; }
   const L=LM[q.target];
-  if(q.mode==='name') el.innerHTML=`<div class="qq">보라색 핀(?)의 이름은?</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
-  else if(q.mode==='pass') el.innerHTML=`<div class="qq">다음 구조물이 지나가는 구멍은?</div><div class="card" style="margin:6px 0">${esc(L.pas)}</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${next}`;
+  const ans=q.done?`<div class="card" style="margin-top:8px"><b>${esc(L.e)}</b><span class="ko">${esc(L.n)}${L.o?' · '+esc(L.o):''}</span>${L.pas&&q.mode!=='pass'?`<div class="muted" style="margin-top:4px">통과: ${esc(L.pas)}</div>`:''}</div>`:'';
+  if(q.mode==='blank'){
+    let h=`<div class="qq">보라색 빈칸(?)에 들어갈 이름은?</div><div class="muted">주변 이름표를 힌트 삼아 맞혀 보세요.</div>`;
+    if(q.input==='type'){
+      h+=`<div style="display:flex;gap:6px;margin-top:8px"><input id="qin" autocomplete="off" placeholder="영문 또는 한글로 입력" value="${esc(q.typed||'')}" ${q.done?'disabled':''} style="flex:1;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);font:inherit"><button class="ghost" id="qok" ${q.done?'disabled':''}>확인</button></div>`+
+        (q.done?'':`<button class="ghost" id="qhint">보기 4개로 힌트</button><button class="ghost" id="qgive">모르겠음</button>`);
+      if(q.hint&&!q.done) h+=q.opts.map(k=>`<div class="muted">· ${esc(enS(LM[k]))} / ${esc(koS(LM[k]))}</div>`).join('');
+    } else h+=q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('');
+    el.innerHTML=h+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${ans}${next}`;
+    const inp=$('#qin');
+    if(inp){ if(!q.done) setTimeout(()=>inp.focus(),50);
+      const sub=()=>{ if(q.done) return; q.typed=inp.value; const ok=checkTyped(q.target,inp.value); finishQ(ok, ok?'정답!':'오답 — 정답은 아래에.'); };
+      inp.onkeydown=e=>{ if(e.key==='Enter') sub(); }; $('#qok').onclick=sub;
+      const hb=$('#qhint'); if(hb) hb.onclick=()=>{ q.typed=inp.value; q.hint=true; drawQ(); };
+      const gv=$('#qgive'); if(gv) gv.onclick=()=>finishQ(false,'정답을 확인하세요.'); }
+  }
+  else if(q.mode==='pass') el.innerHTML=`<div class="qq">다음 구조물이 지나가는 구멍은?</div><div class="card" style="margin:6px 0">${esc(L.pas)}</div>`+q.opts.map(k=>`<button class="qbtn" data-k="${k}">${optHTML(k)}</button>`).join('')+`<div class="fb ${q.fbc||''}">${q.fb||''}</div>${ans}${next}`;
   else if(q.mode==='find'){ el.innerHTML=`<div class="qq">3D에서 이 위치를 찾아 누르세요</div><div style="font-size:16px;font-weight:700;margin:6px 0 0">${esc(L.e)}</div><div class="muted">${esc(L.n)}${L.o?' · '+esc(L.o):''}</div><div class="fb ${q.fbc||''}">${q.fb||''}</div>${q.done?next:'<button class="ghost" id="qskip" style="margin-top:8px">모르겠음 (정답 보기)</button>'}`;
-    const sk=$('#qskip'); if(sk) sk.onclick=()=>{ q.n++; q.done=true; q.fbc='no'; q.fb='정답 위치를 표시했습니다.'; selectKey(q.target); drawQ(); }; }
-  el.querySelectorAll('.qbtn').forEach(b=>b.onclick=()=>{ if(q.done) return; q.n++; const ok=b.dataset.k===q.target; if(ok) q.ok++; q.done=true; q.pick=b.dataset.k;
-    q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':'오답'; selectKey(q.target,null,q.mode==='pass'); renderQuiz(); });
+    const sk=$('#qskip'); if(sk) sk.onclick=()=>finishQ(false,'정답 위치를 표시했습니다.'); }
+  el.querySelectorAll('.qbtn').forEach(b=>b.onclick=()=>{ if(q.done) return; q.pick=b.dataset.k; const ok=b.dataset.k===q.target; finishQ(ok,ok?'정답!':'오답'); });
   if(q.done) el.querySelectorAll('.qbtn').forEach(b=>{ if(b.dataset.k===q.target) b.classList.add('ok'); else if(b.dataset.k===q.pick) b.classList.add('no'); });
-  const n=$('#qn'); if(n) n.onclick=()=>{ nextQuiz(); renderQuiz(); };
+  const n=$('#qn'); if(n) n.onclick=()=>{ q.hint=false; nextQuiz().then(renderQuiz); };
 }
 function quizAnswerFind(i){
-  const q=S.quiz; if(q.done) return; q.n++; const ok=pins[i].k===q.target; if(ok) q.ok++; q.done=true;
-  q.fbc=ok?'ok':'no'; q.fb=ok?'정답!':`오답 — 누른 곳은 "${esc(enS(LM[pins[i].k]))}". 정답 위치를 표시했습니다.`;
-  selectKey(q.target); renderQuiz();
+  const q=S.quiz; if(q.done) return; const ok=pins[i].k===q.target;
+  finishQ(ok, ok?'정답!':`오답 — 누른 곳은 "${esc(enS(LM[pins[i].k]))}". 정답 위치를 표시했습니다.`);
 }
 
 /* ---------- 주소 ---------- */
