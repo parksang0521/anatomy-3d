@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+ <radialGradient id="bg" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#1d3a66"/><stop offset=".6" stop-color="#0d1a34"/><stop offset="1" stop-color="#050a16"/></radialGradient>
+ <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#22d3ee" stop-opacity=".32"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
+ <radialGradient id="hg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ff8a8a"/><stop offset=".55" stop-color="#e0334a"/><stop offset="1" stop-color="#a3162c"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="520" r="440" fill="url(#glow)"/>
+<circle cx="512" cy="520" r="410" fill="none" stroke="#22d3ee" stroke-opacity=".22" stroke-width="4"/>
+<!-- 심장 -->
+<g transform="translate(548,470) rotate(-16) scale(1.35)">
+ <path d="M-8,-58 C-14,-104 4,-122 34,-120" stroke="#e5484d" stroke-width="24" fill="none" stroke-linecap="round"/>
+ <path d="M26,-54 C42,-90 70,-98 92,-88" stroke="#3b6fd8" stroke-width="18" fill="none" stroke-linecap="round"/>
+ <path d="M0,-40 C-10,-82 -84,-82 -84,-24 C-84,28 -22,62 0,100 C22,62 84,28 84,-24 C84,-82 10,-82 0,-40Z" fill="url(#hg)"/>
+ <path d="M-46,-38 C-50,-10 -36,20 -14,40" stroke="#ffffff" stroke-opacity=".35" stroke-width="10" fill="none" stroke-linecap="round"/>
+</g>
+<!-- 빗장뼈 -->
+<path d="M282,262 C372,236 444,270 488,278" stroke="#f1e8d4" stroke-width="30" fill="none" stroke-linecap="round"/>
+<path d="M742,262 C652,236 580,270 536,278" stroke="#f1e8d4" stroke-width="30" fill="none" stroke-linecap="round"/>
+<path d="M474,318 C418.5,292 322,312 334,388 " fill="none" stroke="#f1e8d4" stroke-width="30" stroke-linecap="round"/><path d="M550,318 C605.5,292 702,312 690,388 " fill="none" stroke="#f1e8d4" stroke-width="30" stroke-linecap="round"/><path d="M474,384 C404.2,358 296,378 308,460 " fill="none" stroke="#f1e8d4" stroke-width="28" stroke-linecap="round"/><path d="M550,384 C619.8,358 728,378 716,460 " fill="none" stroke="#f1e8d4" stroke-width="28" stroke-linecap="round"/><path d="M474,450 C389.9,424 270,444 282,532 " fill="none" stroke="#f1e8d4" stroke-width="26" stroke-linecap="round"/><path d="M550,450 C634.1,424 754,444 742,532 " fill="none" stroke="#f1e8d4" stroke-width="26" stroke-linecap="round"/><path d="M474,516 C375.6,490 244,510 256,604 " fill="none" stroke="#f1e8d4" stroke-width="24" stroke-linecap="round"/><path d="M550,516 C648.4,490 780,510 768,604 " fill="none" stroke="#f1e8d4" stroke-width="24" stroke-linecap="round"/><path d="M474,582 C372.29999999999995,556 238,576 250,676 " fill="none" stroke="#f1e8d4" stroke-width="22" stroke-linecap="round"/><path d="M550,582 C651.7,556 786,576 774,676 " fill="none" stroke="#f1e8d4" stroke-width="22" stroke-linecap="round"/><path d="M474,648 C369.0,622 232,642 244,748 " fill="none" stroke="#f1e8d4" stroke-width="20" stroke-linecap="round"/><path d="M550,648 C655.0,622 792,642 780,748 " fill="none" stroke="#f1e8d4" stroke-width="20" stroke-linecap="round"/>
+<!-- 복장뼈 -->
+<path d="M482,282 L542,282 L536,610 Q512,650 488,610 Z" fill="#f1e8d4"/>
+<rect x="482" y="700" width="60" height="40" rx="13" fill="#d8caa9"/><rect x="482" y="754" width="60" height="40" rx="13" fill="#d8caa9"/><rect x="482" y="808" width="60" height="40" rx="13" fill="#d8caa9"/>
+</svg>
