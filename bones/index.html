@@ -417,12 +417,39 @@ cv.addEventListener('pointermove',e=>{ const tb=$('#tipBox'); if(S.mode!=='overv
 cv.addEventListener('pointerleave',()=>{$('#tipBox').style.display='none';});
 
 /* ---------- 사이드바 ---------- */
+/* 검색: 띄어쓰기·순서 무관, 옛 용어, 초성(ㄴㄷㄹ), 영문 오타 허용 */
+const CHO_='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const choOf_=t=>[...t].map(c=>{const k=c.charCodeAt(0)-0xAC00; return k>=0&&k<11172?CHO_[Math.floor(k/588)]:c;}).join('');
+const nrm_=t=>(t||'').toLowerCase().replace(/왼쪽|좌측/g,'왼').replace(/오른쪽|우측/g,'오른').replace(/[\s·\-,()'’]/g,'');
+function lev_(a,b){ if(Math.abs(a.length-b.length)>2) return 9; const d=[...Array(b.length+1).keys()]; for(let i=1;i<=a.length;i++){ let pr=d[0]; d[0]=i; for(let j=1;j<=b.length;j++){ const t=d[j]; d[j]=Math.min(d[j]+1,d[j-1]+1,pr+(a[i-1]===b[j-1]?0:1)); pr=t; } } return d[b.length]; }
+function mkIdx_(ko,old,en,extra){ const k=nrm_(ko)+'|'+nrm_(old)+'|'+nrm_(extra||''); const e=(en||'').toLowerCase(); return {k, cho:choOf_(nrm_(ko)+'|'+nrm_(old)), e, ew:e.split(/[^a-z0-9]+/).filter(Boolean)}; }
+function mscore_(ix,q,fuzzy){
+  const toks=q.trim().split(/\s+/).filter(Boolean); if(!toks.length) return 0; let sc=0;
+  for(const t0 of toks){ let v=0;
+    if(/[가-힣ㄱ-ㅎ]/.test(t0)){ const t=nrm_(t0);
+      if(/^[ㄱ-ㅎ]+$/.test(t)) v=ix.cho.split('|').some(c=>c.startsWith(t))?30:ix.cho.includes(t)?14:0;
+      else { const fs=ix.k.split('|'); v=fs.some(f=>f===t)?100:fs.some(f=>f.startsWith(t))?45:ix.k.includes(t)?22:0; } }
+    else { const t=t0.toLowerCase();
+      v=ix.e===t?100:ix.ew.includes(t)?40:ix.ew.some(w=>w.startsWith(t))?26:ix.e.includes(t)?14:0;
+      if(!v&&fuzzy&&t.length>=4){ const lim=t.length>=7?2:1; if(ix.ew.some(w=>lev_(w,t)<=lim||(w.length>t.length&&lev_(w.slice(0,t.length),t)<=lim))) v=9; } }
+    if(!v) return 0; sc+=v; }
+  return sc;
+}
+let IIX_=null, LIX_=null;
+window.__bsearch=q=>{ const [a,b]=searchBoth_(q); return [a.map(x=>x.en), b.map(k=>LM[k].e)]; };
+function searchBoth_(q){
+  IIX_ ||= ITEMS.map(it=>[it,mkIdx_(it.ko,'',it.en,it.id+' '+itemKo(it))]);
+  LIX_ ||= Object.entries(LM).map(([k,l])=>[k,mkIdx_(l.n,l.o,l.e,'')]);
+  const run=f=>[IIX_.map(([it,ix])=>[mscore_(ix,q,f)-it.en.length*0.05,it]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).map(x=>x[1]),
+                LIX_.map(([k,ix])=>[mscore_(ix,q,f)-(LM[k].e||'').length*0.05,k]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).map(x=>x[1])];
+  let r=run(false); if(!r[0].length&&!r[1].length) r=run(true); return r;
+}
 function renderList(){
   const q=$('#q').value.trim().toLowerCase(); const L=$('#list'); let h='';
   if(q){
-    const its=ITEMS.filter(it=>(it.ko+' '+it.en+' '+it.id).toLowerCase().includes(q));
+    const [its,lks]=searchBoth_(q);
     if(its.length){h+='<div class="grp">BONES · 뼈</div>'; its.forEach(it=>h+=`<button class="hit" data-id="${it.id}">${esc(it.en)}<span class="ko">${esc(itemKo(it))}</span></button>`);}
-    const ks=Object.entries(LM).filter(([k,l])=>(l.n+' '+l.o+' '+l.e).toLowerCase().includes(q)).slice(0,60);
+    const ks=lks.slice(0,60).map(k=>[k,LM[k]]);
     if(ks.length){h+='<div class="grp">STRUCTURES · 구조물</div>'; ks.forEach(([k,l])=>{
       const has=it=>Object.values(it.var).some(v=>v.pts.some(p=>p[0]===k));
       const it=(S.item&&has(S.item)&&S.item)||ITEMS.find(it=>has(it)&&!['skull','pelvis','spine'].includes(it.id))||ITEMS.find(has);
@@ -447,6 +474,7 @@ function renderList(){
   L.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.k; if(S.mode!=='bone'||!S.item||S.item.id!==b.dataset.id) await openItem(b.dataset.id); if(k) selectKey(k); $('#side').classList.remove('open'); });
 }
 $('#q').addEventListener('input',renderList);
+$('#q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const b=$('#list .hit'); if(b){ e.preventDefault(); b.click(); $('#q').blur(); } } });
 $('#backBtn button').onclick=()=>enterOverview();
 $('#quizBtn button').onclick=async()=>{
   S.tab='quiz'; if(!S.quiz) S.quiz={mode:'blank',scope:S.mode==='bone'?'cur':'all',input:'choice',setup:true}; $('#panel').classList.add('open'); renderPanel(); };
