@@ -295,6 +295,12 @@ import nerves as NV
 for o in NV.build():
     put(o['en'], dict(sys='nerves', ko=o['ko'], old='', key=o['key'], grp=o['grp']), o['V'], o['F'].reshape(-1).astype(np.int64))
 
+import extras as EX
+_new, _app = EX.build()
+for en, meta, V, F in _new: put(en, meta, V, F.reshape(-1).astype(np.int64))
+for en, V, F in _app:
+    assert en in structs, en
+    put(en, None, V, F.reshape(-1).astype(np.int64))
 import hires, pickle, copy
 if os.environ.get('DUMPV'):
     pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items() if v['meta']['sys'] in ('arterial','venous','nerves')}, open('/tmp/vpre.pkl','wb'))

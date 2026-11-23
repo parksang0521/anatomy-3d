@@ -224,6 +224,18 @@ for sd, v in side_items('hip'):
     m = mesh(v['meshes'][0]); q, _, _ = m.nearest.on_surface([heads[sd]])
     setpt('acetabulum', v['meshes'][0], np.array(q[0]), 'femoral-head')
 
+# 목말받침돌기: 발꿈치뼈 전체에서 가장 안쪽 점(=발꿈치융기 안쪽)이 잡혔음 → 앞·위쪽 절반에서 안쪽 선반
+for sd, v in side_items('foot'):
+    S = 'right' if sd == 'R' else 'left'; cal = f'{S}_calcaneus'
+    b = Bone([cal], sd); i = b.ext('M', a=(0.45, 0.8), h=(0.5, 1))
+    setpt('sustentaculum', cal, b.V[i], 'sustentaculum')
+
+# 머리뼈: 브레그마는 머리덮개 바깥 점 — '바닥 속면' 보기 전용 표시(i) 해제
+for it in D['items']:
+    for v in it['var'].values():
+        for p in v['pts']:
+            if p[0] == 'bregma' and p[6] == 'i': p[6] = ''
+
 # ---- 모든 핀을 표면에 살짝 묻기 (구멍·관 핀은 구멍 한가운데라 제외)
 emb = 0
 for it in D['items']:

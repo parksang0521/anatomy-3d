@@ -1,3 +1,4 @@
+import os, sys
 """HuBMAP HRA 여성 기준 장기(Visible Human Female) → 웹용 바이너리 + manifest_f.json"""
 import re, json, gzip, glob, os, sys
 import numpy as np, trimesh, fast_simplification
@@ -166,6 +167,20 @@ for f, sysn in FILES.items():
             V, F = v2.astype(float), f2.astype(np.int64)
         put(f'{sy}:{key}', dict(sys=sy, ko=ko, old=old, key=k, grp=grp, en=key), V, F)
 
+# 끊긴 혈관 잇기 (vfix.bridge 재사용)
+import vfix
+FBR = [('hepatic vein (L)', 'inferior vena cava', 'side'), ('coronary artery (L)', 'ascending aorta', 'side'), ('coronary artery (R)', 'ascending aorta', 'side'),
+       ('uterine vein (L)', 'internal iliac vein (L)', 'side'), ('uterine vein (R)', 'internal iliac vein (R)', 'side')]
+KK = {k.split(':', 1)[1]: k for k in structs}
+for a_, b_, mode in FBR:
+    if a_ in KK and b_ in KK:
+        g, d = vfix.bridge(np.concatenate(structs[KK[a_]]['P']), np.concatenate(structs[KK[b_]]['P']), mode)
+        if g is None: print('  bridge FAILED', a_, b_); continue
+        V_, F_ = g; st = structs[KK[a_]]; st['I'].append(F_.reshape(-1) + st['n']); st['P'].append(V_); st['n'] += len(V_)
+        print(f'  bridge {a_} -> {b_}: {d*1000:.1f}mm')
+if os.environ.get('DUMPF'):
+    import pickle
+    pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items() if v['meta']['sys'] in ('arterial','venous')}, open('/tmp/fv.pkl','wb')); sys.exit(0)
 allp = np.concatenate([np.concatenate(s['P']) for s in structs.values()])
 yoff = -allp[:, 1].min()
 for s in structs.values(): s['P'] = [p + np.array([0, yoff, 0]) for p in s['P']]
