@@ -236,6 +236,266 @@ for it in D['items']:
         for p in v['pts']:
             if p[0] == 'bregma' and p[6] == 'i': p[6] = ''
 
+# ---- 갈비뼈: 상자 기준 규칙 대신 갈비뼈 곡선을 따라 척추끝에서 잰 거리로 배치
+def rib_frame(m):
+    V = m.vertices; c0 = V.mean(0)
+    _, _, vt = np.linalg.svd(V - c0, full_matrices=False); e1, e2 = vt[0], vt[1]
+    Q = np.c_[(V - c0) @ e1, (V - c0) @ e2]
+    A = np.c_[2 * Q, np.ones(len(Q))]; sol = np.linalg.lstsq(A, (Q ** 2).sum(1), rcond=None)[0]; cc = sol[:2]
+    th = np.unwrap(np.sort(np.arctan2(Q[:, 1] - cc[1], Q[:, 0] - cc[0])))
+    ang = np.arctan2(Q[:, 1] - cc[1], Q[:, 0] - cc[0])
+    # 각도 간격이 가장 큰 곳을 잘라 연속 구간으로
+    srt = np.sort(ang); gaps = np.diff(np.r_[srt, srt[0] + 2 * np.pi]); cut = srt[(np.argmax(gaps) + 1) % len(srt)]
+    t = (ang - cut) % (2 * np.pi)
+    nb = 80; edges = np.linspace(t.min(), t.max(), nb + 1); bi = np.clip(np.searchsorted(edges, t) - 1, 0, nb - 1)
+    C = np.array([V[bi == k].mean(0) if np.any(bi == k) else np.nan * np.ones(3) for k in range(nb)])
+    ok = ~np.isnan(C[:, 0]); C = C[ok]; keep = np.where(ok)[0]
+    s_ = np.r_[0, np.cumsum(np.linalg.norm(np.diff(C, axis=0), axis=1))]
+    sv = np.interp(bi, keep, s_)   # 각 꼭짓점의 곡선거리
+    # 척추끝 = 정중선(x=0)에 가깝고 뒤쪽(+y)인 끝
+    e0, e1_ = C[0], C[-1]
+    score = lambda e: -abs(e[0]) + e[1]
+    if score(e1_) > score(e0): sv = s_[-1] - sv; C = C[::-1]
+    return sv, s_[-1], C, cc, e1, e2, c0
+
+for it in D['items']:
+    if not it['id'].startswith('rib'): continue
+    n = int(it['id'][3:])
+    for sd, v in it['var'].items():
+        mid = v['meshes'][0]; m = mesh(mid); V = m.vertices
+        sv, L, C, cc, e1, e2, c0 = rib_frame(m)
+        tipv = V[np.argmin(sv)]; tipdir = C[0] - C[min(4, len(C) - 1)]; tipdir /= np.linalg.norm(tipdir)
+        w = sv < 6; head = V[w][np.argmax(V[w] @ tipdir)]
+        setpt('rib_head', mid, head, 'rib-head')
+        w = sv > L - 6; tipdir2 = C[-1] - C[max(-5, -len(C))]; tipdir2 /= np.linalg.norm(tipdir2)
+        setpt('rib_sternal_end', mid, V[w][np.argmax(V[w] @ tipdir2)], 'rib-sternal')
+        P_ = np.array([0, 1.0, 0])
+        if n <= 10 and n != 1:
+            w = (sv > 17) & (sv < 23); setpt('rib_neck', mid, V[w][np.argmax(V[w] @ (P_ + np.array([0, 0, 0.6])))], 'rib-neck')
+            w = (sv > 30) & (sv < 40); setpt('rib_tubercle', mid, V[w][np.argmax(V[w] @ (P_ + np.array([0, 0, -0.3])))], 'rib-tubercle')
+        if 'costal_groove' in [p[0] for p in v['pts']]:
+            w = (sv > 0.3 * L) & (sv < 0.45 * L)
+            # 곡률중심 쪽(안쪽) 아래모서리
+            Q = np.c_[(V - c0) @ e1, (V - c0) @ e2]; rad = np.linalg.norm(Q - cc, axis=1)
+            Ww = np.where(w)[0]; inner = Ww[rad[Ww] < np.median(rad[Ww])]
+            g = inner[np.argmin(V[inner, 2])]
+            setpt('costal_groove', mid, V[g] + np.array([0, 0, 1.5]), 'rib-groove')
+        # 뜬갈비뼈: 없는 구조 핀 제거
+        drop = {11: {'rib_tubercle', 'rib_neck'}, 12: {'rib_tubercle', 'rib_neck', 'rib_angle', 'costal_groove'}}.get(n, set())
+        v['pts'] = [p for p in v['pts'] if p[0] not in drop]
+
+# ---- 척추뼈: 척주관(척추뼈구멍) 기준으로 광선을 쏴서 실제 구조 위에 배치
+def first_hit(m, o, d):
+    loc, ri, ti = m.ray.intersects_location([o], [d], multiple_hits=True)
+    if not len(loc): return None
+    dd = (loc - o) @ np.asarray(d, float)
+    k = dd > 0.3
+    return loc[k][np.argmin(dd[k])] if np.any(k) else None
+
+def vert_fix(it):
+    iid = it['id']; v = it['var']['']; mid = v['meshes'][0]; m = mesh(mid); V = m.vertices
+    pts = v['pts']
+    F = np.array(next(p for p in pts if p[0] == 'vb_foramen')[1:4])
+    near = V[np.abs(V[:, 2] - F[2]) < 3]
+    dxy = np.linalg.norm(near[:, :2] - F[:2], axis=1); rc = float(np.percentile(dxy, 3))
+    hA = first_hit(m, F, [0, -1, 0]); hR = first_hit(m, F, [-1, 0, 0]); hL = first_hit(m, F, [1, 0, 0])
+    wv = V[(np.abs(V[:, 0] - F[0]) < 4) & (np.abs(V[:, 2] - F[2]) < 6) & (V[:, 1] < F[1] - 1)]
+    if len(wv): rc = float(F[1] - wv[:, 1].max())
+    if hR is not None and hL is not None: rcx = float((hL[0] - hR[0]) / 2)
+    else:
+        rx_ = near[np.abs(near[:, 1] - F[1]) < 2.5]; rcx = float(np.min(np.abs(rx_[:, 0] - F[0]))) if len(rx_) else rc
+    ywall = F[1] - rc
+    cv = V[(np.abs(np.abs(V[:, 0] - F[0]) - 0.85 * rcx) < 0.2 * rcx) & (np.abs(V[:, 2] - F[2]) < 6) & (V[:, 1] < F[1])]
+    ywall_c = float(cv[:, 1].max()) if len(cv) else ywall
+    body = V[(V[:, 1] < ywall - 1) & (np.abs(V[:, 0] - F[0]) < 2 * rcx)]
+    zt, zb = np.percentile(body[:, 2], 99), np.percentile(body[:, 2], 1)
+    body = None
+    kind = iid[0]; n = int(iid[1:])
+    def put(key, side, P_, why):
+        if P_ is None: return
+        for p in pts:
+            if p[0] == key and p[5] == side:
+                moves.append((round(float(np.linalg.norm(np.array(p[1:4]) - P_)), 1), iid, key, side, why))
+                p[1], p[2], p[3] = [round(float(x), 1) for x in P_]
+    for side, sx in (('R', -1.0), ('L', 1.0)):
+        if kind == 'C' and n >= 2:
+            off = rcx + 5
+            put('sup_articular_process', side, first_hit(m, [F[0] + sx * off, F[1] - 0.2 * rc, V[:, 2].max() + 30], [0, 0, -1]), 'v-sap')
+            put('inf_articular_process', side, first_hit(m, [F[0] + sx * off, F[1] + 0.2 * rc, V[:, 2].min() - 30], [0, 0, 1]), 'v-iap')
+        if kind == 'T':
+            loc = V[(np.abs(V[:, 1] - (ywall_c - 2)) < 2.5) & (np.abs(V[:, 0] - F[0]) < rcx + 10) & (np.abs(V[:, 2] - F[2]) < 30)]
+            ztl, zbl = loc[:, 2].max(), loc[:, 2].min()
+            put('sup_costal_facet', side, first_hit(m, [F[0] + sx * 90, ywall_c - 2, ztl - 3], [-sx, 0, 0]), 'v-scf')
+            put('inf_costal_facet', side, first_hit(m, [F[0] + sx * 90, ywall_c - 2, zbl + 3], [-sx, 0, 0]), 'v-icf')
+            xo = F[0] + sx * 0.9 * rcx
+            col = V[(np.abs(V[:, 0] - xo) < 3) & (V[:, 1] > F[1])]
+            put('sup_articular_process', side, first_hit(m, [xo, F[1] + 80, col[:, 2].max() - 4], [0, -1, 0]), 'v-sap')
+            put('lamina', side, first_hit(m, [F[0] + sx * 0.55 * rcx, F[1] + 80, F[2] - 2], [0, -1, 0]), 'v-lamina')
+        if kind == 'L':
+            put('pedicle', side, first_hit(m, [F[0] + sx * 90, F[1] - 0.25 * rc, F[2] + 6], [-sx, 0, 0]), 'v-pedicle')
+    if kind == 'T':
+        zs = []
+        for sx in (-1.0, 1.0):
+            xo2 = F[0] + sx * 0.75 * rcx; col2 = V[(np.abs(V[:, 0] - xo2) < 3) & (V[:, 1] > F[1] + rc)]
+            zs.append(col2[:, 2].min())
+        zi = max(zs) + 4
+        for side, sx in (('R', -1.0), ('L', 1.0)):
+            put('inf_articular_process', side, first_hit(m, [F[0] + sx * 0.75 * rcx, F[1] + 80, zi], [0, -1, 0]), 'v-iap')
+    # 없는 구조 제거: T10–12 아래갈비오목, T11–12 가로돌기갈비오목
+    drop = set()
+    if kind == 'T' and n >= 10: drop.add('inf_costal_facet')
+    if kind == 'T' and n >= 11: drop.add('tp_costal_facet')
+    v['pts'] = [p for p in pts if p[0] not in drop]
+
+for it in D['items']:
+    if it['id'][0] in 'CTL' and it['id'][1:].isdigit() and it['id'] != 'C1': vert_fix(it)
+
+# ---- 고리뼈(C1): 위·아래관절면 = 위/아래에서 내려다본 가쪽덩이 관절면, 가쪽덩이 = 두 면 사이 앞면
+it = next(x for x in D['items'] if x['id'] == 'C1'); v = it['var']['']; m = mesh(v['meshes'][0]); V = m.vertices
+F = np.array(next(p for p in v['pts'] if p[0] == 'vb_foramen')[1:4])
+for side, sx in (('R', -1.0), ('L', 1.0)):
+    tp = next(p for p in v['pts'] if p[0] == 'atlas_tp' and p[5] == side)
+    xm = F[0] + sx * 0.5 * abs(tp[1] - F[0]) * 0.95   # 가쪽덩이 가운데 (척주관 가장자리와 가로돌기 끝 사이)
+    sf = first_hit(m, [xm, F[1] - 3, V[:, 2].max() + 30], [0, 0, -1]); inf_ = first_hit(m, [xm, F[1] - 3, V[:, 2].min() - 30], [0, 0, 1])
+    for p in v['pts']:
+        if p[5] != side: continue
+        if p[0] == 'atlas_sup_facet' and sf is not None: p[1:4] = [round(float(x), 1) for x in sf]
+        if p[0] == 'atlas_inf_facet' and inf_ is not None: p[1:4] = [round(float(x), 1) for x in inf_]
+        if p[0] == 'atlas_lateral_mass' and sf is not None and inf_ is not None:
+            mc = (sf + inf_) / 2; h = first_hit(m, mc + np.array([0, -30, 0]) * -0 , [sx * 0.35, -1, 0])
+            if h is not None: p[1:4] = [round(float(x), 1) for x in h]
+
+# ---- 좌우 짝 중 틀린 쪽을 맞는 쪽의 거울상으로 (정중선 뼈)
+def mirror_fix(iid, key, src):
+    it = next(x for x in D['items'] if x['id'] == iid)
+    for v in it['var'].values():
+        S_ = [p for p in v['pts'] if p[0] == key and p[5] == src]; T_ = [p for p in v['pts'] if p[0] == key and p[5] != src and p[5]]
+        if not S_ or not T_: continue
+        Vall = np.vstack([mesh(mm).vertices for mm in v['meshes']]); cx = (Vall[:, 0].min() + Vall[:, 0].max()) / 2
+        q = np.array(S_[0][1:4]); q[0] = 2 * cx - q[0]
+        tgt = T_[0]; mm = mesh(tgt[4]); c, _, _ = mm.nearest.on_surface([q])
+        newp = c[0] if LM[key]['t'] != 'f' else q
+        moves.append((round(float(np.linalg.norm(np.array(tgt[1:4]) - newp)), 1), iid, key, tgt[5], 'mirror'))
+        setpt(key, tgt[4], newp, 'mirror', side=tgt[5])
+def pair_mirror(iid, key, src):
+    it = next(x for x in D['items'] if x['id'] == iid); dst = 'L' if src == 'R' else 'R'
+    vs, vd = it['var'][src], it['var'][dst]
+    ps = next(p for p in vs['pts'] if p[0] == key); pd = next(p for p in vd['pts'] if p[0] == key)
+    cs = mesh(ps[4]).vertices.mean(0); cd = mesh(pd[4]).vertices.mean(0)
+    q = np.array(ps[1:4]) - cs; q[0] = -q[0]; q = q + cd
+    c, _, _ = mesh(pd[4]).nearest.on_surface([q])
+    moves.append((round(float(np.linalg.norm(np.array(pd[1:4]) - c[0])), 1), iid, key, dst, 'pair-mirror'))
+    setpt(key, pd[4], c[0], 'pair-mirror', side=pd[5])
+pair_mirror('scapula', 'suprascapular_notch', 'R')
+
+# 가쪽복사오목: 가쪽복사 끝보다 8~22mm 위, 안쪽·뒤쪽을 향한 면의 중심
+it_f = next(x for x in D['items'] if x['id'] == 'fibula')
+for sd_, v_ in it_f['var'].items():
+    pf = next(p for p in v_['pts'] if p[0] == 'malleolar_fossa'); m_ = mesh(pf[4])
+    V, N = m_.vertices, m_.vertex_normals; zt = V[:, 2].min()
+    Mx = 1.0 if sd_ == 'R' else -1.0
+    sel = (V[:, 2] > zt + 8) & (V[:, 2] < zt + 22) & (N[:, 0] * Mx > 0.2) & (N[:, 1] > 0.3)
+    q = np.median(V[sel], 0); c, _, _ = m_.nearest.on_surface([q])
+    moves.append((round(float(np.linalg.norm(np.array(pf[1:4]) - c[0])), 1), 'fibula', 'malleolar_fossa', sd_, 'fossa'))
+    setpt('malleolar_fossa', pf[4], c[0], 'fossa', side=pf[5])
+mirror_fix('hyoid', 'greater_horn', 'R')
+mirror_fix('frontal', 'supraorbital_notch', 'R')
+mirror_fix('sacrum', 'sacral_ala', 'R')
+mirror_fix('ethmoid', 'cribriform_plate', 'R')
+mirror_fix('C2', 'inf_articular_process', 'L')
+# 허리뼈 아래관절돌기: 정중선에서 더 먼(가시돌기에 붙지 않은) 쪽을 기준으로 거울상
+for n in range(1, 6):
+    it = next(x for x in D['items'] if x['id'] == f'L{n}'); v = it['var']['']
+    V_ = mesh(v['meshes'][0]).vertices; cx = (V_[:, 0].min() + V_[:, 0].max()) / 2
+    pr = {p[5]: p for p in v['pts'] if p[0] == 'inf_articular_process'}
+    if abs(abs(pr['R'][1] - cx) - abs(pr['L'][1] - cx)) > 3:
+        mirror_fix(f'L{n}', 'inf_articular_process', 'R' if abs(pr['R'][1] - cx) > abs(pr['L'][1] - cx) else 'L')
+# 머리뼈: 왼쪽 위턱뼈 이마돌기(26 mm 뒤로 들어가 있음) → 오른쪽 거울상, 시각신경관은 좌우 평균 위치로
+def skull_mirror(key, src, avg=False):
+    v = next(x for x in D['items'] if x['id'] == 'skull')['var']['']
+    S_ = next(p for p in v['pts'] if p[0] == key and p[5] == src); T_ = next(p for p in v['pts'] if p[0] == key and p[5] and p[5] != src)
+    a_ = np.array(S_[1:4]); b_ = np.array(T_[1:4]); cx = -1.0
+    if avg:
+        mb = b_.copy(); mb[0] = 2 * cx - mb[0]; na = (a_ + mb) / 2; nb = na.copy(); nb[0] = 2 * cx - nb[0]
+        setpt(key, S_[4], na, 'skull-avg', side=S_[5]); setpt(key, T_[4], nb, 'skull-avg', side=T_[5])
+    else:
+        q = a_.copy(); q[0] = 2 * cx - q[0]; c, _, _ = mesh(T_[4]).nearest.on_surface([q])
+        setpt(key, T_[4], c[0], 'skull-mirror', side=T_[5])
+skull_mirror('frontal_process_maxilla', 'R')
+skull_mirror('optic_canal', 'R', avg=True)
+
+# 같은 핀이 두 번 들어간 경우(머리뼈 전체의 턱끝구멍 등) 첫 번째만 남김
+for it in D['items']:
+    for v in it['var'].values():
+        seen = set(); out = []
+        for p in v['pts']:
+            k = (p[0], p[5], p[4])
+            if k in seen: continue
+            seen.add(k); out.append(p)
+        v['pts'] = out
+
+# ---- 넙다리뼈 융기사이오목: 뒤쪽, 두 관절융기 사이에서 가장 깊이 들어간 곳
+for sd, v in side_items('femur'):
+    b = Bone(v['meshes'], sd); Pd = b.d('P')
+    k = b.mask(h=(0.02, 0.11), m=(0.4, 0.6)) & ((b.N @ Pd) > 0.2)
+    idx = np.where(k)[0]; i = idx[np.argmin(b.V[idx] @ Pd)]
+    setpt('intercondylar_fossa', v['meshes'][0], b.V[i], 'icf')
+# ---- 어깨뼈 오목들: 면의 한가운데
+for sd, v in side_items('scapula'):
+    b = Bone(v['meshes'], sd)
+    i = b.face_center('A', h=(0.3, 0.72), m=(0.3, 0.8)); setpt('subscapular_fossa', v['meshes'][0], b.V[i], 'ssf')
+    sp = np.array(next(p for p in v['pts'] if p[0] == 'scap_spine')[1:4])
+    # 가시 위쪽 면: 어깨뼈가시 핀보다 위, 안쪽 절반
+    sa = np.array(next(p for p in v['pts'] if p[0] == 'superior_angle')[1:4])
+    Mx = b.d('M')[0]; xm = (b.V[:, 0] * Mx).max(); W = np.ptp(b.V[:, 0])
+    xx = b.V[:, 0] * Mx
+    k = (b.V[:, 2] > sp[2] + 6) & (b.V[:, 2] < sa[2] - 4) & (xx < xm - 0.08 * W) & (xx > xm - 0.45 * W) & ((b.N @ b.d('P')) > 0.3)
+    idx = np.where(k)[0]
+    if len(idx):
+        Q = b.V[idx][:, [0, 2]]; c = np.median(Q, 0); i = idx[np.argmin(np.linalg.norm(Q - c, axis=1))]
+        setpt('supraspinous_fossa', v['meshes'][0], b.V[i], 'spf')
+# ---- 엉치뼈 뒤엉치뼈구멍: 뒤에서 본 깊이지도에서 S1–S2 높이의 가장 깊은 구멍
+it = next(x for x in D['items'] if x['id'] == 'sacrum'); v = it['var']['']; m = mesh(v['meshes'][0]); V = m.vertices
+cx = (V[:, 0].min() + V[:, 0].max()) / 2
+af = {p[5]: np.array(p[1:4]) for p in v['pts'] if p[0] == 'ant_sacral_foramen'}
+for side, sx in (('R', -1.0), ('L', 1.0)):
+    best = None
+    for dx in np.arange(6, 30, 1.5):
+        for z in np.arange(af[side][2] - 4, af[side][2] + 30, 1.5):
+            o = np.array([cx + sx * dx, V[:, 1].max() + 40, z]); h = first_hit(m, o, [0, -1, 0])
+            dep = (o[1] - h[1]) if h is not None else 999
+            if best is None or dep > best[0]: best = (dep, o, h)
+    dep, o, h = best
+    P_ = np.array([o[0], (V[:, 1].max() if h is None else h[1] + 4), o[2]])
+    P_[1] = min(P_[1], V[(np.abs(V[:, 0] - o[0]) < 6) & (np.abs(V[:, 2] - o[2]) < 6), 1].max() - 3)
+    for p in v['pts']:
+        if p[0] == 'post_sacral_foramen' and p[5] == side:
+            moves.append((round(float(np.linalg.norm(np.array(p[1:4]) - P_)), 1), 'sacrum', 'post_sacral_foramen', side, 'depthmap'))
+            p[1:4] = [round(float(x), 1) for x in P_]
+
+# ---- 텍스트 바로잡기
+def fixtxt(key, field, old, new):
+    v = LM[key][field]; assert old in v, (key, field, old); LM[key][field] = v.replace(old, new)
+fixtxt('fem_neck', 'd', '(앞굽음)', '(앞기울임, anteversion)')
+fixtxt('pubic_tubercle', 'c', '샅굴헤르니아(결절 위가쪽)', '샅굴헤르니아(결절 위안쪽)')
+LM['hook_hamate']['o'] = '유구골갈고리'
+fixtxt('zygomatic_body', 'c', '광대뼈 골절(삼각골절)', '광대뼈 골절(삼각대골절, tripod fracture)')
+fixtxt('aiis', 'd', 'ASIS 아래.', 'ASIS 아래. 넙다리곧은근 곧은갈래와 엉덩넙다리인대가 붙는다.')
+fixtxt('gluteal_tuberosity', 'd', '몸통 위쪽 뒤가쪽의 거친면.', '몸통 위쪽 뒤가쪽의 거친면. 큰볼기근 일부가 붙는다.')
+fixtxt('gerdy_tubercle', 'd', '가쪽관절융기 앞가쪽의 결절.', '가쪽관절융기 앞가쪽의 결절. 엉덩정강띠가 붙는다.')
+fixtxt('infraglenoid_tubercle', 'd', '접시오목 바로 아래.', '접시오목 바로 아래. 위팔세갈래근 긴갈래가 시작한다.')
+fixtxt('supraglenoid_tubercle', 'd', '접시오목 바로 위.', '접시오목 바로 위. 위팔두갈래근 긴갈래가 시작한다.')
+ITM = {it['id']: it for it in D['items']}
+t = ITM['talus']['info']
+assert '쉼표 모양 가쪽 관절면(큰 세모꼴)' in t['lr']
+t['lr'] = '도르래를 위, 머리를 앞으로 둔다. 도르래 양옆의 관절면 중 크고 세모꼴인 면이 가쪽(가쪽복사와 관절), 작은 쉼표 모양 면이 안쪽(안쪽복사와 관절).'
+RIBD = {
+ 'rib2': '제2갈비뼈: 제1갈비뼈보다 길고 덜 납작하다. 바깥면 가운데쯤에 앞톱니근거친면이 있는 것이 특징. 머리 관절면 2개(T1·T2).',
+ 'rib10': '제10갈비뼈: 머리 관절면이 1개(T10 몸통)인 것이 전형적 갈비뼈와 다르다. 갈비연골이 위 갈비연골에 붙는 마지막 거짓갈비뼈.',
+ 'rib11': '뜬갈비뼈: 머리 관절면 1개, 목·결절이 없거나 흔적만 있고, 갈비뼈각·갈비뼈고랑이 약하다. 앞끝이 뾰족하고 복장뼈와 연결되지 않는다.',
+ 'rib12': '뜬갈비뼈: 가장 짧은 경우가 많다. 머리 관절면 1개, 목·결절·갈비뼈각·갈비뼈고랑이 없다. 앞끝이 뾰족하고 복장뼈와 연결되지 않는다.'}
+for k, v in RIBD.items(): ITM[k]['info']['d'] = v
+
 # ---- 모든 핀을 표면에 살짝 묻기 (구멍·관 핀은 구멍 한가운데라 제외)
 emb = 0
 for it in D['items']:
