@@ -104,7 +104,11 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 #info .row b{color:var(--acc);font-weight:500;margin-right:4px}
 #info .row.pass b{color:var(--acc2)}
 #info .row.c b{color:#f9a8d4}
-#info .acts{display:flex;gap:8px;margin-top:11px}
+#info .acts{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+#info .hid{padding:10px 12px;border-radius:10px;border:1px solid rgba(248,113,113,.45);background:rgba(248,113,113,.08);color:#fca5a5;font-size:13px;cursor:pointer}
+#hidChip{position:absolute;left:50%;transform:translateX(-50%);top:62px;z-index:5;display:none;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:12.5px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+@media (max-width:900px){#hidChip{top:auto;bottom:calc(14px + env(safe-area-inset-bottom))}}
+#hidChip button{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer}
 #info .go{flex:1;padding:10px;border-radius:10px;background:var(--acc);color:#1a1205;font-weight:700;font-size:14px}
 #info .go2{padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px}
 #load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:13px;z-index:3;background:var(--panel);padding:10px 16px;border-radius:10px;border:1px solid var(--line)}
@@ -199,6 +203,7 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
     </div>
     <div id="load">불러오는 중…</div>
     <div id="info"></div>
+    <div id="hidChip"><span id="hidName"></span><button id="hidUndo">되돌리기</button><button id="hidAll">모두 보이기</button></div>
   </main>
   <aside id="panel">
     <button id="pclose" onclick="document.getElementById('panel').classList.remove('open')">×</button>
@@ -279,8 +284,25 @@ async function enterOverview(keepCam){
   center.copy(ovCenter); radius=ovRadius;
   if(S.ovSel){ hlOv(S.ovSel,false); S.ovSel=null; }
   if(!keepCam) setView('ant');
-  renderList(); renderTop(); renderPanel(); setHash(); dirty=true;
+  renderList(); renderTop(); renderPanel(); setHash(); applyHid(); dirty=true;
 }
+const HID={ov:[],bone:[]}; // 지운 뼈 (순서 = 되돌리기 순서)
+function hidList(){ return S.mode==='overview'?HID.ov:HID.bone; }
+function applyHid(){
+  ovMeshes.forEach(m=>{m.visible=!HID.ov.includes(m);});
+  if(S.mode==='bone'){ meshes.forEach(m=>{ if(HID.bone.includes(m.userData.id)) m.visible=false; });
+    pins.forEach(p=>{ p.hiddenByBone=HID.bone.includes(p.mid); if(p.hiddenByBone) p.mesh.visible=false; }); }
+  const L=hidList(), c=$('#hidChip'); c.style.display=L.length?'flex':'none';
+  if(L.length) $('#hidName').textContent=`지운 뼈 ${L.length}개`;
+  occDirty=true; dirty=true;
+}
+function restoreBoneVis(){ const nomand=S.preset==='ext';
+  meshes.forEach(m=>{m.visible=!(nomand&&(m.userData.id==='mandible'||m.userData.id.includes('lower')));});
+  pins.forEach(p=>{p.mesh.visible=!p.filtered&&!p.hiddenByPreset;}); }
+function hideOv(m){ if(!m||HID.ov.includes(m)) return; if(S.ovSel===m){hlOv(m,false); S.ovSel=null;} HID.ov.push(m); hideInfo(); $('#tipBox').style.display='none'; applyHid(); }
+function hideBoneMesh(id){ if(!id||HID.bone.includes(id)) return; if(meshes.filter(m=>m.visible).length<=1) return; HID.bone.push(id); hideInfo(); applyHid(); }
+function unhideLast(){ const L=hidList(); if(!L.length) return; L.pop(); if(S.mode==='bone') restoreBoneVis(); applyHid(); }
+function unhideAllBones(){ const L=hidList(); L.length=0; if(S.mode==='bone') restoreBoneVis(); applyHid(); }
 function hlOv(m,on){ m.material.emissive=new THREE.Color(on?0x6a3f00:0x000000); dirty=true; }
 function ovItem(o){ const [id,sd]=o.it; return {it:byId[id],sd}; }
 function selectOv(m){
@@ -294,11 +316,12 @@ function selectOv(m){
   el.innerHTML=`<button class="x" id="infoX">×</button>
     <div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}${multi?' · '+esc(it.en)+'에 포함':''}</div>
     <div class="row">${esc((it.info&&it.info.d)||'')}</div>
-    <div class="acts"><button class="go" id="goBone">따로 보기 →</button>${it.var.R?`<button class="go2" id="goOther">${sd==='L'?'오른쪽':'왼쪽'} 것 보기</button>`:''}</div>`;
+    <div class="acts"><button class="go" id="goBone">따로 보기 →</button>${it.var.R?`<button class="go2" id="goOther">${sd==='L'?'오른쪽':'왼쪽'} 것 보기</button>`:''}<button class="hid" id="hidBtn" title="이 뼈를 화면에서 지우기 (Delete)">지우기</button></div>`;
   el.style.display='block';
   $('#infoX').onclick=()=>{hideInfo(); if(S.ovSel){hlOv(S.ovSel,false); S.ovSel=null;}};
   $('#goBone').onclick=()=>openItem(it.id,sd||null);
   const go=$('#goOther'); if(go) go.onclick=()=>openItem(it.id,sd==='L'?'R':'L');
+  $('#hidBtn').onclick=()=>hideOv(m);
 }
 
 /* ---------- 뼈 따로 보기 ---------- */
@@ -306,7 +329,7 @@ async function openItem(id,side){ $('#side').classList.remove('open'); await loa
 async function loadItem(id,side,keepView){
   const it=byId[id]; if(!it) return;
   S.mode='bone'; S.item=it; if(side) S.side=side; if(it.var.R && !it.var[S.side]) S.side='R';
-  S.sel=null; S.preset=null; clipPlane.constant=1e5; hideInfo();
+  S.sel=null; S.preset=null; S.boneSel=null; HID.bone.length=0; clipPlane.constant=1e5; hideInfo();
   ovRoot.visible=false; root.visible=true; pinG.visible=true; $('#tipBox').style.display='none';
   $('#load').style.display='block'; $('#load').textContent='불러오는 중…';
   const v=variant();
@@ -343,7 +366,7 @@ function buildPins(){
   const lab=$('#labels'); lab.innerHTML=''; pins.forEach(p=>lab.appendChild(p.el));
   applyFilter();
 }
-function applyFilter(){ pins.forEach(p=>{p.filtered=!(S.typeF==='all'||(S.typeF==='f'?p.t==='f':p.t!=='f')); p.mesh.visible=!p.filtered&&!p.hiddenByPreset;}); occDirty=true; dirty=true; }
+function applyFilter(){ pins.forEach(p=>{p.filtered=!(S.typeF==='all'||(S.typeF==='f'?p.t==='f':p.t!=='f')); p.mesh.visible=!p.filtered&&!p.hiddenByPreset;}); occDirty=true; dirty=true; if(typeof HID!=='undefined') applyHid(); }
 function onPinClick(i){ if(S.quiz&&!S.quiz.setup&&S.quiz.mode==='blank'&&!S.quiz.done) return; if(S.quiz&&!S.quiz.setup&&S.quiz.mode==='find'){quizAnswerFind(i);return;} selectKey(pins[i].k,i); }
 function selectKey(k,pi,fly=true){
   S.sel=k; const ps=pins.filter(p=>p.k===k&&p.mesh.visible);
@@ -388,7 +411,7 @@ function skullPreset(p){
   if(S.preset==='int'){ cam.up.set(0,-1,0); ctl.target.set(0,-95,1520); cam.position.set(0,-95,1520+420); }
   else if(S.preset==='ext'){ cam.up.set(0,-1,0); ctl.target.set(0,-100,1500); cam.position.set(0,-100,1500-420); }
   else setView('ant');
-  ctl.update(); renderTop(); occDirty=true; dirty=true;
+  ctl.update(); renderTop(); applyHid(); occDirty=true; dirty=true;
 }
 
 /* labels / occlusion */
@@ -427,7 +450,7 @@ cv.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 function ndc(e){const r=cv.getBoundingClientRect(); return new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);}
 cv.addEventListener('pointerup',e=>{ if(!down) return; const moved=Math.hypot(e.clientX-down[0],e.clientY-down[1]); down=null; if(moved>5) return;
   raycaster.setFromCamera(ndc(e),cam); raycaster.far=Infinity; raycaster.firstHitOnly=true;
-  if(S.mode==='overview'){ const h=raycaster.intersectObjects(ovMeshes,false)[0]; if(h) selectOv(h.object); else { hideInfo(); if(S.ovSel){hlOv(S.ovSel,false); S.ovSel=null;} } return; }
+  if(S.mode==='overview'){ const h=raycaster.intersectObjects(ovMeshes.filter(x=>x.visible),false)[0]; if(h) selectOv(h.object); else { hideInfo(); if(S.ovSel){hlOv(S.ovSel,false); S.ovSel=null;} } return; }
   const ph=raycaster.intersectObjects(pinG.children.filter(p=>p.visible),false)[0];
   raycaster.firstHitOnly=false;
   const mh=raycaster.intersectObjects(meshes.filter(x=>x.visible),false).filter(h=>!clipped(h.point))[0];
@@ -437,8 +460,8 @@ cv.addEventListener('pointerup',e=>{ if(!down) return; const moved=Math.hypot(e.
     if(best!=null && bd<Math.max(4,radius*0.05) && !(S.quiz&&!S.quiz.setup&&S.quiz.mode!=='find')){ onPinClick(best); return; }
     if(meshes.length>1 && !(S.quiz&&!S.quiz.setup)){
       const id=mh.object.userData.id; const o=ovById[id]; if(!o) return; const {it,sd}=ovItem(o);
-      const el=$('#info'); el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button><div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}</div>${it.id!==S.item.id?`<div class="acts"><button class="go" id="goBone">따로 보기 →</button></div>`:''}`;
-      el.style.display='block'; const g=$('#goBone'); if(g) g.onclick=()=>openItem(it.id,sd||null);
+      const el=$('#info'); el.innerHTML=`<button class="x" onclick="this.parentNode.style.display='none'">×</button><div class="nm">${esc(o.en)}</div><div class="alt">${esc(o.ko)}</div><div class="acts">${it.id!==S.item.id?`<button class="go" id="goBone">따로 보기 →</button>`:''}<button class="hid" id="hidBtn" title="이 뼈를 화면에서 지우기 (Delete)">지우기</button></div>`;
+      el.style.display='block'; const g=$('#goBone'); if(g) g.onclick=()=>openItem(it.id,sd||null); S.boneSel=id; $('#hidBtn').onclick=()=>hideBoneMesh(id);
       mh.object.material.emissive=new THREE.Color(0x553300); dirty=true; setTimeout(()=>{mh.object.material.emissive=new THREE.Color(0);dirty=true;},500);
     }
   }
@@ -447,7 +470,7 @@ let hoverT=0;
 cv.addEventListener('pointermove',e=>{ const tb=$('#tipBox'); if(S.mode!=='overview'||e.pointerType!=='mouse'||down){tb.style.display='none';return;}
   const now=performance.now(); if(now-hoverT<40) return; hoverT=now;
   raycaster.setFromCamera(ndc(e),cam); raycaster.firstHitOnly=true; raycaster.far=Infinity;
-  const h=raycaster.intersectObjects(ovMeshes,false)[0];
+  const h=raycaster.intersectObjects(ovMeshes.filter(x=>x.visible),false)[0];
   if(h){ const o=h.object.userData.ov; const r=main.getBoundingClientRect(); tb.innerHTML=esc(o.en)+'<small>'+esc(o.ko)+'</small>'; tb.style.left=(e.clientX-r.left+14)+'px'; tb.style.top=(e.clientY-r.top+10)+'px'; tb.style.display='block'; cv.style.cursor='pointer'; }
   else { tb.style.display='none'; cv.style.cursor=''; } });
 cv.addEventListener('pointerleave',()=>{$('#tipBox').style.display='none';});
@@ -512,6 +535,10 @@ function renderList(){
 $('#q').addEventListener('input',renderList);
 $('#q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const b=$('#list .hit'); if(b){ e.preventDefault(); b.click(); $('#q').blur(); } } });
 $('#backBtn button').onclick=()=>enterOverview();
+$('#hidUndo').onclick=unhideLast; $('#hidAll').onclick=unhideAllBones;
+addEventListener('keydown',e=>{ if(/INPUT|TEXTAREA/.test(document.activeElement&&document.activeElement.tagName)) return;
+  if(e.key==='Delete'||e.key==='Backspace'){ if(S.mode==='overview'&&S.ovSel){ e.preventDefault(); hideOv(S.ovSel); } else if(S.mode==='bone'&&S.boneSel&&$('#info').style.display!=='none'&&$('#hidBtn')){ e.preventDefault(); hideBoneMesh(S.boneSel); } }
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&hidList().length){ e.preventDefault(); unhideLast(); } });
 $('#quizBtn button').onclick=async()=>{
   S.tab='quiz'; if(!S.quiz) S.quiz={mode:'blank',scope:S.mode==='bone'?'cur':'all',input:'choice',setup:true}; $('#panel').classList.add('open'); renderPanel(); };
 

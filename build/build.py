@@ -291,6 +291,24 @@ for fid, en in extra.items():
     ko, old, k, sy, grp = ORGAN[key]
     put(en, dict(sys=sy, ko=ko, old=old, key=k, grp=grp), p2.astype(np.float64), f2.reshape(-1).astype(np.int64))
 
+# 배벽 층 (BodyParts3D 3.0 STL): 배곧은근·배속빗근·배가로근·배세모근·허리네모근 — 배바깥빗근은 기존 모델에 있음
+ABW = {'FMA13377': ('Right rectus abdominis', '오른쪽 배곧은근', 'rectusabd'), 'FMA13378': ('Left rectus abdominis', '왼쪽 배곧은근', 'rectusabd'),
+       'FMA13892': ('Right internal oblique', '오른쪽 배속빗근', 'intoblique'), 'FMA13893': ('Left internal oblique', '왼쪽 배속빗근', 'intoblique'),
+       'FMA22344': ('Right transversus abdominis', '오른쪽 배가로근', 'transabd'), 'FMA22345': ('Left transversus abdominis', '왼쪽 배가로근', 'transabd'),
+       'FMA22346': ('Right pyramidalis', '오른쪽 배세모근', 'pyramidalis'), 'FMA22347': ('Left pyramidalis', '왼쪽 배세모근', 'pyramidalis'),
+       'FMA22348': ('Right quadratus lumborum', '오른쪽 허리네모근', 'quadlumb'), 'FMA22349': ('Left quadratus lumborum', '왼쪽 허리네모근', 'quadlumb')}
+for fid, (en, ko, k) in ABW.items():
+    v = to_ha(load(f'/home/claude/data/bp3d/assets/BodyParts3D_data/stl/{fid}.stl')) + OFF
+    q = np.round(v * 1e5).astype(np.int64)
+    uq, inv = np.unique(q, axis=0, return_inverse=True)
+    pts = uq / 1e5; faces = inv.reshape(-1, 3)
+    faces = faces[(faces[:, 0] != faces[:, 1]) & (faces[:, 1] != faces[:, 2]) & (faces[:, 0] != faces[:, 2])]
+    if len(faces) > 6000:
+        p2, f2 = fast_simplification.simplify(pts.astype(np.float32), faces.astype(np.int32), target_reduction=1 - 6000 / len(faces))
+        pts, faces = p2.astype(np.float64), f2.astype(np.int64)
+    print(en, len(faces))
+    put(en, dict(sys='muscular', ko=ko, old='', key=k, grp=None), pts, faces.reshape(-1).astype(np.int64))
+
 import nerves as NV
 for o in NV.build():
     put(o['en'], dict(sys='nerves', ko=o['ko'], old='', key=o['key'], grp=o['grp']), o['V'], o['F'].reshape(-1).astype(np.int64))

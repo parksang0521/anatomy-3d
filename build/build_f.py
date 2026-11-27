@@ -8,7 +8,8 @@ import regions as RG
 
 OUT = '/home/claude/anatomy-3d/models'
 D = '/home/claude/data/ccf/'
-FILES = {
+KEEPF = ['3d-vh-f-skin', 'VH_F_Pelvis', 'VH_F_Uterus', 'VH_F_Ovary', 'VH_F_Fallopian', 'mammary', 'blood-vasculature']
+FILES_ALL = {
  'v1.3/models/3d-vh-f-skin.glb': 'skin', 'v1.3/models/VH_F_Pelvis.glb': 'skeletal', 'v1.3/models/VH_F_Knee_L.glb': 'skeletal', 'v1.3/models/VH_F_Knee_R.glb': 'skeletal',
  'v1.3/models/VH_F_Heart.glb': 'cardio', 'v1.3/models/VH_F_Spleen.glb': 'cardio', 'v1.3/models/VH_F_Thymus.glb': 'cardio',
  'v1.4/models/3d-vh-f-lung.glb': 'respiratory', 'v1.4/models/3d-vh-f-trachea.glb': 'respiratory', 'v1.4/models/3d-vh-f-main-bronchus.glb': 'respiratory', 'v1.4/models/3d-vh-f-larynx.glb': 'respiratory',
@@ -19,6 +20,7 @@ FILES = {
  'v1.3/models/3d-vh-f-mammary-gland-l.glb': 'reproductive', 'v1.3/models/3d-vh-f-mammary-gland-r.glb': 'reproductive',
  'v1.3/models/VH_F_Spinal_Cord.glb': 'nerves', 'v1.4/models/3d-vh-f-blood-vasculature.glb': 'vessels',
 }
+FILES = {f: s for f, s in FILES_ALL.items() if (any(k in f for k in KEEPF) if not os.environ.get('DUMPALL') else True)}
 SKIP = r'impression|spongy|enthesis|perichondular|condyle|trochlear_groove|intercondylar|distal_most|segment1|_segment$|anterolateral_segment|superomedial|inferomedial|anterosuperior|posteroinferior|posterosuperior|anteroinferior|quadrate_lobe|caudate_lobe|bare_area|diaphragmatic_surface_of_liver|ostium|internal_cervical_os|external_cervical_os|areolar_tubercles|ileocecal_valve|carina'
 SIDEK = {'L': '왼쪽 ', 'R': '오른쪽 '}
 ORD = {'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5, 'sixth': 6, 'seventh': 7, 'eigth': 8, 'eighth': 8, 'ninth': 9, 'tenth': 10, 'eleventh': 11, 'twelfth': 12}
@@ -129,6 +131,7 @@ def name(node, sysn):
         m = re.match(r'pulmonary vein (inf|sup)$', t)
         if m: t = ('inferior' if m.group(1) == 'inf' else 'superior') + ' pulmonary vein'
         t = re.sub(r'\b(left|right) ', '', t).strip()
+        if not os.environ.get('DUMPALL') and not re.match(r'(uterine|ovarian) (artery|vein)', t): return None
         EX = {'uterine artery': '자궁동맥', 'uterine vein': '자궁정맥', 'cystic artery': '쓸개동맥', 'cystic vein': '쓸개정맥', 'central retinal artery': '망막중심동맥',
               'central retinal vein': '망막중심정맥', 'long posterior ciliary artery': '긴뒤섬모체동맥', 'marginal artery of drummond': '잘록창자가장자리동맥 (Drummond)',
               'marginal branch': '심장동맥 모서리가지', 'middle hepatic artery branch of hepatic artery': '중간간동맥', 'oblique vein of atrium': '왼심방빗정맥',
@@ -167,6 +170,47 @@ for f, sysn in FILES.items():
             V, F = v2.astype(float), f2.astype(np.int64)
         put(f'{sy}:{key}', dict(sys=sy, ko=ko, old=old, key=k, grp=grp, en=key), V, F)
 
+
+# 질: 원본(HuBMAP)에 없어 자궁목·방광목·회음 위치를 기준으로 생성 (납작한 관, 위끝이 자궁목 질부를 둘러쌈)
+def make_vagina():
+    C_ = np.concatenate(structs['reproductive:cervix']['P']) if 'reproductive:cervix' in structs else None
+    if C_ is None: return
+    lowc = C_[C_[:, 1] < C_[:, 1].min() + 0.012]
+    xm = float(np.median(lowc[:, 0])); zc = float(np.median(lowc[:, 2])); y0 = float(C_[:, 1].min())
+    # (높이 y, 앞뒤 z, 가쪽 반폭, 앞뒤 반폭) — 위: 질천장(뒤천장이 더 깊음), 아래: 질어귀
+    K = np.array([[y0 + 0.011, zc - 0.003, 0.0160, 0.0150],
+                  [y0 + 0.003, zc - 0.001, 0.0155, 0.0135],
+                  [y0 - 0.006, zc + 0.002, 0.0140, 0.0095],
+                  [y0 - 0.022, zc + 0.008, 0.0125, 0.0065],
+                  [y0 - 0.042, zc + 0.015, 0.0110, 0.0060],
+                  [y0 - 0.060, zc + 0.020, 0.0085, 0.0050]])
+    from scipy.interpolate import CubicSpline
+    t0 = np.linspace(0, 1, len(K)); t = np.linspace(0, 1, 48)
+    Y, Z, AX, AZ = [CubicSpline(t0, K[:, i])(t) for i in range(4)]
+    a = np.linspace(0, 2 * np.pi, 40, endpoint=False)
+    # 단면: 앞뒤벽이 맞닿은 H 모양 느낌(가운데가 살짝 오목)
+    sx = np.cos(a); sz = np.sin(a) * (1 - 0.25 * np.cos(a) ** 2)
+    def ring(sc_):
+        return np.stack([xm + sc_ * AX[:, None] * sx[None], np.repeat(Y[:, None], len(a), 1), Z[:, None] + sc_ * AZ[:, None] * sz[None]], -1).reshape(-1, 3)
+    th = 0.0028
+    Vo = ring(1.0)
+    Vi = np.stack([xm + (AX[:, None] - th) * sx[None], np.repeat(Y[:, None], len(a), 1), Z[:, None] + np.maximum(AZ[:, None] - th, 0.0012) * sz[None]], -1).reshape(-1, 3)
+    n, m = len(t), len(a)
+    i = np.arange(n - 1)[:, None]; j = np.arange(m)[None]
+    A_ = i * m + j; B_ = i * m + (j + 1) % m
+    Fo = np.concatenate([np.stack([A_, B_, A_ + m], -1).reshape(-1, 3), np.stack([B_, B_ + m, A_ + m], -1).reshape(-1, 3)])
+    Fi = Fo[:, ::-1] + n * m
+    # 양 끝 가장자리 막기
+    def lip(r):
+        a0 = r * m + np.arange(m); b0 = a0 + n * m; a1 = r * m + (np.arange(m) + 1) % m; b1 = a1 + n * m
+        f = np.concatenate([np.stack([a0, b0, a1], -1), np.stack([a1, b0, b1], -1)])
+        return f if r == 0 else f[:, ::-1]
+    V = np.concatenate([Vo, Vi]); F = np.concatenate([Fo, Fi, lip(0), lip(n - 1)])
+    mm_ = trimesh.Trimesh(V, F, process=False)
+    if mm_.volume < 0: F = F[:, ::-1]
+    put('reproductive:vagina', dict(sys='reproductive', ko='질', old='질', key='vagina', grp='자궁', en='vagina'), V, F.astype(np.int64))
+    print('  vagina added', len(V), 'verts; top y', round(Y[0], 3), 'bottom y', round(Y[-1], 3))
+make_vagina()
 # 끊긴 혈관 잇기 (vfix.bridge 재사용)
 import vfix
 FBR = [('hepatic vein (L)', 'inferior vena cava', 'side'), ('coronary artery (L)', 'ascending aorta', 'side'), ('coronary artery (R)', 'ascending aorta', 'side'),
@@ -178,6 +222,9 @@ for a_, b_, mode in FBR:
         if g is None: print('  bridge FAILED', a_, b_); continue
         V_, F_ = g; st = structs[KK[a_]]; st['I'].append(F_.reshape(-1) + st['n']); st['P'].append(V_); st['n'] += len(V_)
         print(f'  bridge {a_} -> {b_}: {d*1000:.1f}mm')
+if os.environ.get('DUMPALL'):
+    import pickle
+    pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items()}, open('/tmp/fall.pkl','wb')); sys.exit(0)
 if os.environ.get('DUMPF'):
     import pickle
     pickle.dump({k:dict(meta=v['meta'],P=np.concatenate(v['P']),I=np.concatenate(v['I'])) for k,v in structs.items() if v['meta']['sys'] in ('arterial','venous')}, open('/tmp/fv.pkl','wb')); sys.exit(0)
